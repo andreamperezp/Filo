@@ -1,0 +1,117 @@
+@import "tailwindcss";
+
+/*
+ * Design tokens de Filo (tomados del prototipo de Claude Design).
+ * Tema claro "crema" y oscuro "tabaco". Los componentes usan solo tokens
+ * semánticos (bg-surface, text-muted…), nunca hex sueltos.
+ */
+:root {
+  --bg: #f3eee6;
+  --surface: #fbf8f3;
+  --surface-2: #e9e0d2;
+  --ink: #2a1c15;
+  --muted: #6e6057;
+  --line: #e0d5c6;
+  --primary: #3b2419;
+  --on-primary: #f8f1e7;
+  --accent-soft: #eed9bf;
+  --on-accent-soft: #5e3212;
+  --danger: #a63a2b;
+  --on-danger: #fff6f2;
+  --danger-soft: #f4dcd5;
+  --ok-soft: #dce6da;
+  --on-ok: #2f4a33;
+  --pro-1: #b8692e;
+  --pro-2: #4e6b5a;
+  --pro-3: #8a5a7a;
+  --av-ink: #fff8f0;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #16100d;
+    --surface: #211814;
+    --surface-2: #2e221c;
+    --ink: #f3e9e0;
+    --muted: #b09a8a;
+    --line: #3a2b23;
+    --primary: #f2b25c;
+    --on-primary: #2a1608;
+    --accent-soft: #3d2a1a;
+    --on-accent-soft: #f7d3a1;
+    --danger: #ff8f7a;
+    --on-danger: #2a0e0a;
+    --danger-soft: #3b2220;
+    --ok-soft: #2c3a2a;
+    --on-ok: #cbe6c0;
+    --pro-1: #f2b25c;
+    --pro-2: #9fd3b4;
+    --pro-3: #e8a3b8;
+    --av-ink: #2a1608;
+    color-scheme: dark;
+  }
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-primary: var(--primary);
+  --color-on-primary: var(--on-primary);
+  --color-accent-soft: var(--accent-soft);
+  --color-on-accent-soft: var(--on-accent-soft);
+  --color-danger: var(--danger);
+  --color-on-danger: var(--on-danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-ok-soft: var(--ok-soft);
+  --color-on-ok: var(--on-ok);
+  --color-pro-1: var(--pro-1);
+  --color-pro-2: var(--pro-2);
+  --color-pro-3: var(--pro-3);
+  --color-av-ink: var(--av-ink);
+  --font-sans: var(--font-manrope), system-ui, sans-serif;
+  --font-display: var(--font-instrument), Georgia, serif;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Foco visible y consistente para teclado (WCAG 2.4.7). */
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+dialog::backdrop {
+  background: rgb(0 0 0 / 0.45);
+}
+
+@keyframes slide-up {
+  from {
+    transform: translateY(16px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+.animate-slide-up {
+  animation: slide-up 220ms ease-out;
+}
