@@ -200,7 +200,7 @@ function Hero() {
           </Phone>
         </div>
         {/* Aviso que recibe el equipo cuando entra una reserva. */}
-        <div className="absolute top-6 right-4 max-w-[15rem] rounded-2xl bg-venice-deep/95 p-3 text-merino shadow-xl sm:right-6">
+        <div className="absolute top-6 right-6 hidden max-w-[15rem] rounded-2xl bg-venice-deep/95 p-3 text-merino shadow-xl sm:block">
           <p className="text-xs font-bold">Nuevo turno · Tintura</p>
           <p className="text-xs text-merino/80">Camila Sosa · Mañana 15:00 · Sofía</p>
         </div>
@@ -292,7 +292,11 @@ function RoleRow({
           ))}
         </ul>
       </div>
-      <div className={cx("relative pb-10", reverse && "lg:order-1")} style={themeVars(FILO_THEME)}>
+      {/* Alto mínimo = alto del celular escalado, para que nunca suba sobre el texto. */}
+      <div
+        className={cx("relative min-h-[24rem] pb-10 sm:min-h-[27rem] lg:min-h-0", reverse && "lg:order-1")}
+        style={themeVars(FILO_THEME)}
+      >
         <div className="relative ml-auto aspect-[4/3] w-[88%] overflow-hidden rounded-[2rem]">
           <Image
             src={photo}

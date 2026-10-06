@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { IconPhoto, IconUpload } from "@tabler/icons-react";
 import { cx } from "@/components/ui";
-import { AgendaScreen, BookingScreen, ClientScreen, FILO_THEME, Phone, themeVars, type BrandTheme } from "./mockups";
+import { BookingScreen, ClientScreen, FILO_THEME, Phone, themeVars, type BrandTheme } from "./mockups";
 
 /** Estilos de ejemplo para que el dueño vea su app con otra identidad. */
 const PRESETS: BrandTheme[] = [
@@ -60,9 +60,33 @@ function tint(hex: string, amount: number) {
   return `#${mix.join("")}`;
 }
 
-/** Tema armado a partir de un solo color de marca (para "Tu color"). */
-function themeFromColor(name: string, primary: string): BrandTheme {
-  const dark = luminance(primary) < 0.4;
+/** Mezcla un color con negro (0 = color, 1 = negro). */
+function shade(hex: string, amount: number) {
+  const mix = [1, 3, 5].map((i) =>
+    Math.round(parseInt(hex.slice(i, i + 2), 16) * (1 - amount))
+      .toString(16)
+      .padStart(2, "0"),
+  );
+  return `#${mix.join("")}`;
+}
+
+const contrast = (a: string, b: string) => {
+  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+};
+
+/**
+ * Tema armado a partir de un solo color de marca (para "Tu color").
+ * Si el color es muy claro (amarillo pastel, blanco…), botones y selecciones
+ * usan una versión más oscura del mismo tono hasta tener contraste 3:1 con el
+ * fondo (mínimo WCAG para controles); el color original queda de acento.
+ */
+function themeFromColor(name: string, color: string): BrandTheme {
+  let primary = color;
+  for (let step = 0.1; contrast(primary, "#ffffff") < 3 && step <= 0.9; step += 0.1) {
+    primary = shade(color, step);
+  }
+  const onPrimary = contrast(primary, "#ffffff") >= 4.5 ? "#ffffff" : "#16181b";
   return {
     name,
     bg: tint(primary, 0.93),
@@ -70,8 +94,8 @@ function themeFromColor(name: string, primary: string): BrandTheme {
     ink: "#1f2328",
     muted: "#5d6670",
     primary,
-    onPrimary: dark ? "#ffffff" : "#16181b",
-    soft: tint(primary, 0.82),
+    onPrimary,
+    soft: tint(primary, 0.84),
   };
 }
 
@@ -87,7 +111,7 @@ export function BrandStudio() {
   const theme: BrandTheme = { ...base, logoUrl };
 
   return (
-    <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+    <div className="grid gap-10 lg:grid-cols-[minmax(20rem,24rem)_minmax(0,1fr)] lg:items-center lg:gap-12">
       <div className="flex flex-col gap-6">
         <fieldset>
           <legend className="mb-3 text-sm font-semibold text-merino/85">Probá un estilo</legend>
@@ -163,19 +187,12 @@ export function BrandStudio() {
         </fieldset>
       </div>
 
-      <div
-        style={themeVars(theme)}
-        className="flex [scrollbar-width:none] justify-center gap-4 overflow-x-auto pb-2 lg:justify-end"
-        aria-live="polite"
-      >
+      <div style={themeVars(theme)} className="flex justify-center gap-4" aria-live="polite">
         <Phone label={`App de ${theme.name}: inicio de la clienta`}>
           <ClientScreen theme={theme} />
         </Phone>
         <Phone label={`App de ${theme.name}: elegir día y hora`} className="hidden sm:block">
           <BookingScreen theme={theme} />
-        </Phone>
-        <Phone label={`App de ${theme.name}: agenda del peluquero`} className="hidden 2xl:block">
-          <AgendaScreen theme={theme} />
         </Phone>
       </div>
     </div>
