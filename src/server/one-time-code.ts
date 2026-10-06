@@ -1,7 +1,7 @@
 import "server-only";
 
 import { createHash, randomInt, timingSafeEqual } from "node:crypto";
-import { isProduction } from "./env";
+import { isDemo } from "./env";
 
 /**
  * Códigos de un solo uso para ingresar con el celular (sin contraseña).
@@ -23,7 +23,7 @@ interface Entry {
   expiresAt: number;
   sentAt: number;
   attempts: number;
-  /** Solo en desarrollo, para mostrarlo en pantalla (no hay proveedor de SMS). */
+  /** Solo en modo demo, para mostrarlo en pantalla (no hay proveedor de SMS). */
   devCode?: string;
 }
 
@@ -44,7 +44,7 @@ export function issueCode(phone: string): IssueResult {
     expiresAt: Date.now() + CODE_TTL_MS,
     sentAt: Date.now(),
     attempts: 0,
-    devCode: isProduction ? undefined : code,
+    devCode: isDemo ? code : undefined,
   });
   // TODO(fase 3): enviar por WhatsApp Cloud API con la plantilla "codigo_ingreso".
   return { ok: true };
@@ -69,7 +69,7 @@ export function secondsUntilResend(phone: string): number {
   return entry ? Math.max(0, Math.ceil((entry.sentAt + RESEND_AFTER_S * 1000 - Date.now()) / 1000)) : 0;
 }
 
-/** Código visible en modo demo. Siempre `undefined` en producción. */
+/** Código visible en modo demo. Siempre `undefined` fuera de demo. */
 export function devCodeFor(phone: string): string | undefined {
-  return isProduction ? undefined : store.get(phone)?.devCode;
+  return isDemo ? store.get(phone)?.devCode : undefined;
 }

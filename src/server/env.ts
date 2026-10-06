@@ -24,9 +24,18 @@ export function env() {
     SESSION_SECRET: process.env.SESSION_SECRET,
     ADMIN_EMAIL: process.env.ADMIN_EMAIL,
     ADMIN_PASSWORD: process.env.ADMIN_PASSWORD,
-    DEV_STAFF_PASSWORD: process.env.NODE_ENV === "production" ? undefined : process.env.DEV_STAFF_PASSWORD,
+    DEV_STAFF_PASSWORD: isDemo ? process.env.DEV_STAFF_PASSWORD : undefined,
   });
   return cached;
 }
 
 export const isProduction = process.env.NODE_ENV === "production";
+
+/**
+ * Modo demo: muestra el código de ingreso en pantalla (no hay proveedor de
+ * SMS/WhatsApp todavía), crea cuentas de prueba y muestra avisos de demo.
+ * Activo siempre en desarrollo; en producción solo si se pide EXPLÍCITAMENTE
+ * con `DEMO_MODE=true` (link público de prueba con datos de ejemplo).
+ * Nunca activarlo en un deploy con clientas reales.
+ */
+export const isDemo = !isProduction || process.env.DEMO_MODE === "true";
