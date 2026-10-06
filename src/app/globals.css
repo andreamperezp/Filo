@@ -154,7 +154,7 @@ dialog::backdrop {
 
 /* Guía de la demo (driver.js) con la paleta de Filo. */
 .driver-popover.filo-guide {
-  max-width: min(24rem, calc(100vw - 2rem));
+  max-width: min(20rem, calc(100vw - 2rem));
   border: 1px solid var(--line);
   border-radius: 1.25rem;
   background: var(--surface);
@@ -165,7 +165,7 @@ dialog::backdrop {
 }
 .filo-guide .driver-popover-title {
   font-family: var(--font-fraunces), serif;
-  font-size: 1.4rem;
+  font-size: 1.25rem;
   font-weight: 600;
   line-height: 1.15;
 }
@@ -187,16 +187,6 @@ dialog::backdrop {
 }
 .filo-guide .driver-popover-description li + li {
   margin-top: 0.3rem;
-}
-.filo-guide .filo-guide-who {
-  display: inline-block;
-  margin-bottom: 0.6rem;
-  border-radius: 999px;
-  background: var(--accent-soft);
-  color: var(--on-accent-soft);
-  padding: 0.2rem 0.65rem;
-  font-size: 0.75rem;
-  font-weight: 700;
 }
 .filo-guide .driver-popover-progress-text {
   color: var(--muted);

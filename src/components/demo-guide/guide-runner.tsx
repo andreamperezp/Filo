@@ -44,7 +44,7 @@ function buildSteps(tour: Tour, audience: Audience): DriveStep[] {
           element: element ?? undefined,
           popover: {
             title: s.title,
-            description: `<span class="filo-guide-who">¿Quién la usa? ${tour.who}</span>${s.body}`,
+            description: s.body,
           },
         },
       ];
@@ -52,8 +52,8 @@ function buildSteps(tour: Tour, audience: Audience): DriveStep[] {
 }
 
 /**
- * Guía paso a paso de la demo (driver.js). Se abre sola la primera vez que
- * alguien visita cada pantalla y se puede repetir con el botón "Guía".
+ * Guía paso a paso de la demo (driver.js). Solo la entrada de cada recorrido
+ * se abre sola, una vez; cualquier pantalla con guía la muestra con "Guía".
  */
 export function GuideRunner({ audience }: { audience: Audience }) {
   const pathname = usePathname();
@@ -89,7 +89,7 @@ export function GuideRunner({ audience }: { audience: Audience }) {
   }, [tour, audience]);
 
   useEffect(() => {
-    if (!tour || wasSeen(`${tour.id}:${audience}`)) return;
+    if (!tour?.autoStart || wasSeen(`${tour.id}:${audience}`)) return;
     // Espera a que la pantalla termine de acomodarse (fuentes, animaciones).
     const timer = setTimeout(start, 700);
     return () => clearTimeout(timer);

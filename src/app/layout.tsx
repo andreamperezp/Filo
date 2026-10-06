@@ -13,9 +13,10 @@ export const metadata: Metadata = {
   applicationName: "Filo",
 };
 
+/** Claro por defecto en todos los roles; el modo oscuro es una elección de cada persona. */
 async function chosenTheme() {
   const value = (await cookies()).get(THEME_COOKIE)?.value;
-  return isTheme(value) ? value : null;
+  return isTheme(value) ? value : "light";
 }
 
 export async function generateViewport(): Promise<Viewport> {
