@@ -15,6 +15,7 @@ export default async function StaffLayout({ children }: LayoutProps<"/panel">) {
 
   const tabs: Tab[] = [
     { href: "/panel", label: "Agenda", icon: "agenda", match: ["/panel/turnos", "/panel/nuevo"] },
+    { href: "/panel/caja", label: "Caja", icon: "cash", match: ["/panel/caja"] },
     { href: "/panel/actividad", label: "Actividad", icon: "activity", badge: unread.length },
   ];
   if (user.role === "admin")

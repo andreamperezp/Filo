@@ -100,7 +100,38 @@ export interface Business {
 
 export type PaymentMethod = "in_store" | "deposit";
 
+/** `attended` = turno finalizado (cerrado con su cobro). */
 export type BookingStatus = "confirmed" | "attended" | "cancelled";
+
+/** Cómo pagó en el local (casi siempre por fuera de la app). */
+export type PaymentChannel = "cash" | "transfer" | "card" | "mercadopago" | "other";
+
+export const PAYMENT_CHANNEL_LABEL: Record<PaymentChannel, string> = {
+  cash: "Efectivo",
+  transfer: "Transferencia",
+  card: "Débito / crédito",
+  mercadopago: "Mercado Pago",
+  other: "Otro",
+};
+
+/**
+ * Cierre del turno: lo que se cobró y cuánto duró de verdad. Es la fuente del
+ * panel de Caja (ingresos, tiempo invertido y valor por hora).
+ */
+export interface BookingCheckout {
+  /** Cobrado en el local en este cierre (sin contar la seña online, que ya estaba paga). */
+  chargedArs: number;
+  /** Seña online que se había pagado al reservar (para el total del turno). */
+  depositArs: number;
+  tipArs: number;
+  channel: PaymentChannel;
+  /** Minutos que realmente llevó atender. */
+  actualDurationMin: number;
+  closedAt: string;
+  /** Persona del equipo que lo cerró. */
+  closedBy: string;
+  note?: string;
+}
 
 export interface Booking {
   id: BookingId;
@@ -117,6 +148,10 @@ export interface Booking {
   clientPhone: string;
   payment: PaymentMethod;
   status: BookingStatus;
+  /** Momento en que se empezó a atender (botón "Empezar"), para medir la duración real. */
+  startedAt?: string;
+  /** Datos del cierre (cobro y duración real). Presente si `status === "attended"`. */
+  checkout?: BookingCheckout;
   /** El equipo todavía no lo vio (se resalta como "Nuevo" en la agenda). */
   unseenByOwner: boolean;
   createdAt: string;
@@ -136,7 +171,7 @@ export interface Client {
   createdAt: string;
 }
 
-export type ActivityKind = "created" | "cancelled" | "rescheduled";
+export type ActivityKind = "created" | "cancelled" | "rescheduled" | "closed";
 
 export interface ActivityEvent {
   id: string;

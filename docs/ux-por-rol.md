@@ -227,6 +227,20 @@ día, no el de los demás. **Métrica clave:** turnos gestionados sin pedirle na
 
 ---
 
+## Cierre de turno y Caja · "cuánto hice hoy y cuánto me lleva cada clienta"
+
+- **Cero tipeo en el caso típico**: el monto viene en el precio de lista (menos la seña ya paga) y la duración, del reloj o de lo agendado. Revisar y tocar "Finalizar · $X".
+- **El botón dice lo que va a pasar** ("Finalizar · $ 14.500") y el resumen se actualiza mientras se edita.
+- **Montos como se escriben en Argentina**: acepta "14500", "14.500" o "$ 14.500" y lo muestra con separador de miles.
+- **"Empezar turno" es opcional**: si no se usa, nada se bloquea; solo mejora la precisión del tiempo.
+- **Estados en la agenda** (En curso / Por cobrar / Cobrado $X) y un aviso en Caja de los turnos sin cerrar: la caja nunca queda incompleta sin que nadie lo note.
+- **Caja con jerarquía**: primero los números que importan (ingresos y valor por hora), después el detalle. Un solo color en el gráfico (una sola serie), tooltip accesible por teclado y tabla equivalente para lectores de pantalla.
+- **Privacidad entre colegas**: cada peluquero ve solo su caja; la comparación entre profesionales es solo del superadmin.
+
+→ `app/panel/turnos/[id]/cerrar/*`, `app/panel/caja/*`, `domain/earnings.ts`.
+
+---
+
 ## Cómo validar (próximos pasos)
 
 | Qué medir                 | Cómo                                                                                                                |

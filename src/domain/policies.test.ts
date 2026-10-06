@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { BUSINESS, SEED_SERVICE_BY_ID as SERVICE_BY_ID } from "@/data/catalog";
-import { amountDueInStore, clientCanModify, depositAmount, ownerCanMarkAttended } from "./policies";
+import { amountDueInStore, clientCanModify, depositAmount } from "./policies";
 import type { Booking } from "./types";
 
 const booking = (partial: Partial<Booking> = {}): Booking => ({
@@ -43,12 +43,5 @@ describe("política de cancelación", () => {
     const early = { date: "2026-10-01", minute: 0 };
     expect(clientCanModify(BUSINESS, booking({ status: "cancelled" }), early)).toBe(false);
     expect(clientCanModify(BUSINESS, booking({ status: "attended" }), early)).toBe(false);
-  });
-});
-
-describe("marcar como atendido", () => {
-  it("solo cuando el turno ya empezó", () => {
-    expect(ownerCanMarkAttended(booking(), { date: "2026-10-08", minute: 18 * 60 - 1 })).toBe(false);
-    expect(ownerCanMarkAttended(booking(), { date: "2026-10-08", minute: 18 * 60 })).toBe(true);
   });
 });

@@ -215,7 +215,29 @@ Bajas: **Desactivar** (con confirmación) corta el acceso al instante y deja de
 ofrecerlo para turnos nuevos; sus turnos próximos quedan en la agenda y se avisa
 cuántos son. **Blanquear contraseña** genera otra temporal.
 
-### 6. Enterarse de novedades
+### 6. Finalizar y cobrar un turno
+
+```mermaid
+flowchart TD
+  A[Llega la clienta] --> B{¿Tocó 'Empezar turno'?<br/>opcional, desde 15 min antes}
+  B -- Sí --> C[El turno queda 'En curso'<br/>corre el reloj]
+  B -- No --> D[Atiende normalmente]
+  C & D --> E[Detalle del turno · 'Finalizar y cobrar']
+  E --> F[Monto precargado: precio de lista − seña<br/>chips: precio de lista · sin cargo]
+  F --> G[Medio de pago · propina opcional]
+  G --> H[Duración: medida desde 'Empezar' o la agendada<br/>± 5 min · 'usar lo agendado']
+  H --> I([Finalizar · $X → turno 'Finalizado'<br/>suma en Caja y en Actividad])
+  J[Turno que terminó sin cerrar] -.->|'Por cobrar' en agenda y aviso en Caja| E
+```
+
+### 7. Revisar la caja
+
+Pestaña **Caja** → período (hoy / semana / mes) → números clave arriba
+(ingresos, turnos, ticket promedio, tiempo invertido, valor por hora) y debajo
+el detalle por día, medio de pago, servicio y profesional (este último, solo
+superadmin). Tocar un turno de la lista abre su detalle.
+
+### 8. Enterarse de novedades
 
 ```mermaid
 sequenceDiagram

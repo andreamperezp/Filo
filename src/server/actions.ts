@@ -90,10 +90,42 @@ export async function staffCancelBooking(_prev: FormState, form: FormData): Prom
   redirect("/panel");
 }
 
-export async function staffMarkAttended(form: FormData) {
+export async function staffStartBooking(form: FormData) {
   const user = await requireStaff();
-  await bookings.markAttended(user, id.parse(form.get("bookingId")));
+  await bookings.startBooking(user, id.parse(form.get("bookingId")));
   revalidatePath("/", "layout");
+}
+
+/** Montos escritos como "12.000", "$ 12000" o "12000": solo cuentan los dígitos. */
+const pesos = (max: number) =>
+  z.preprocess(
+    (v) => (typeof v === "string" ? v.replace(/\D/g, "") || "0" : v),
+    z.coerce.number().int().min(0).max(max, "Revisá el monto."),
+  );
+
+const closeSchema = z.object({
+  bookingId: id,
+  chargedArs: pesos(10_000_000),
+  tipArs: pesos(1_000_000),
+  channel: z.enum(["cash", "transfer", "card", "mercadopago", "other"], "Elegí cómo pagó."),
+  actualDurationMin: z.coerce.number().int().min(5, "La duración mínima es 5 min.").max(600, "Revisá la duración."),
+  note: z.string().trim().max(120, "La nota es demasiado larga.").optional(),
+});
+
+export type CloseState = { error: string | null; values?: Record<string, string> };
+
+/** "Finalizar y cobrar": registra el cobro (casi siempre por fuera de la app) y la duración real. */
+export async function staffCloseBooking(_prev: CloseState, form: FormData): Promise<CloseState> {
+  const user = await requireStaff();
+  const values = Object.fromEntries([...form.entries()].map(([k, v]) => [k, String(v)]));
+  const input = parse(closeSchema, form);
+  if (!input.success) return { error: input.error.issues[0].message ?? "Revisá los datos.", values };
+
+  const result = await bookings.closeBooking(user, input.data);
+  if (!result.ok) return { error: result.error, values };
+
+  revalidatePath("/", "layout");
+  redirect(`/panel/turnos/${result.value.id}?cerrado=1`);
 }
 
 export async function staffMarkSeen(bookingId: string) {

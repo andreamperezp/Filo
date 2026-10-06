@@ -141,7 +141,7 @@ export class MemoryRepository implements Repository {
 }
 
 /** Subir este número cuando cambie la forma de `State`: el dev server rearma los datos. */
-const STATE_VERSION = 2;
+const STATE_VERSION = 3;
 
 export const ADMIN_STAFF_ID = "staff-romina";
 

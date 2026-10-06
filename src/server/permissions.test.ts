@@ -141,3 +141,49 @@ describe("reglas de reserva", () => {
     throw new Error("No se encontró un día libre para la prueba");
   });
 });
+
+describe("finalizar y cobrar", () => {
+  async function pendingOf(pro: string) {
+    const { bookings, repo } = await setup();
+    const { nowIn, addDays } = await import("@/domain/time");
+    const today = nowIn("America/Argentina/Buenos_Aires").date;
+    // Turno de ayer sin cerrar (lo creamos para no depender del horario en que corre el test).
+    const booking = {
+      id: `pending-${pro}`,
+      date: addDays(today, -1),
+      start: 600,
+      serviceId: "corte",
+      durationMin: 30,
+      professionalId: pro,
+      clientId: "c",
+      clientName: "Clienta",
+      clientPhone: "",
+      payment: "in_store" as const,
+      status: "confirmed" as const,
+      unseenByOwner: false,
+      createdAt: "",
+    };
+    await repo.insertBooking(booking);
+    return { bookings, repo, booking };
+  }
+
+  const input = { chargedArs: 12000, tipArs: 500, channel: "cash" as const, actualDurationMin: 40 };
+
+  it("un peluquero no puede cobrar un turno ajeno", async () => {
+    const { bookings, booking } = await pendingOf("sofi");
+    expect(await bookings.closeBooking(lucas, { ...input, bookingId: booking.id })).toMatchObject({ ok: false });
+  });
+
+  it("cerrar guarda lo cobrado y la duración real, una sola vez", async () => {
+    const { bookings, booking } = await pendingOf("lucas");
+    const result = await bookings.closeBooking(lucas, { ...input, bookingId: booking.id });
+    expect(result).toMatchObject({
+      ok: true,
+      value: {
+        status: "attended",
+        checkout: { chargedArs: 12000, tipArs: 500, actualDurationMin: 40, closedBy: lucas.id },
+      },
+    });
+    expect(await bookings.closeBooking(lucas, { ...input, bookingId: booking.id })).toMatchObject({ ok: false });
+  });
+});

@@ -1,34 +1,39 @@
 import { notFound } from "next/navigation";
-import { IconBrandWhatsapp, IconCircleCheck, IconPhone } from "@tabler/icons-react";
+import { IconBrandWhatsapp, IconCash, IconCircleCheck, IconPhone, IconPlayerPlay } from "@tabler/icons-react";
 import { BUSINESS } from "@/data/catalog";
 import { formatMoney } from "@/domain/money";
 import { formatArMobile } from "@/domain/phone";
 import { depositAmount } from "@/domain/policies";
-import { formatLongDay, formatRelativeDay, formatTime } from "@/domain/time";
-import { staffCancelBooking, staffMarkAttended } from "@/server/actions";
+import { formatDuration, formatLongDay, formatRelativeDay, formatTime } from "@/domain/time";
+import { PAYMENT_CHANNEL_LABEL } from "@/domain/types";
+import { staffCancelBooking, staffStartBooking } from "@/server/actions";
 import { getBookingDetail } from "@/server/bookings";
 import { requireStaff } from "@/server/session";
 import { ConfirmDialog, SubmitButton } from "@/components/forms";
-import { Badge, KeyValueList, Screen, TopBar, buttonVariants } from "@/components/ui";
+import { Badge, ButtonLink, KeyValueList, Screen, TopBar, buttonVariants } from "@/components/ui";
+import { Elapsed } from "./elapsed";
 import { MarkSeen } from "./mark-seen";
 
 export const metadata = { title: "Detalle del turno" };
 
 const STATUS = {
   confirmed: { label: "Confirmado", tone: "ok" },
-  attended: { label: "Atendido", tone: "muted" },
+  attended: { label: "Finalizado", tone: "muted" },
   cancelled: { label: "Cancelado", tone: "danger" },
 } as const;
 
 export default async function BookingDetail({ params, searchParams }: PageProps<"/panel/turnos/[id]">) {
   const user = await requireStaff();
   const { id } = await params;
-  const justCreated = (await searchParams).nuevo === "1";
+  const query = await searchParams;
+  const justCreated = query.nuevo === "1";
+  const justClosed = query.cerrado === "1";
   // Un peluquero que abre un turno ajeno (por URL) ve "no encontrado", sin filtrar datos.
   const detail = await getBookingDetail(user, id);
   if (!detail) notFound();
 
-  const { booking: b, now, catalog, canMarkAttended } = detail;
+  const { booking: b, now, catalog, canStart, canClose } = detail;
+  const checkout = b.checkout;
   const s = catalog.serviceById.get(b.serviceId)!;
   const deposit = depositAmount(BUSINESS, s);
   const phoneDigits = b.clientPhone.replace(/\D/g, "");
@@ -49,9 +54,24 @@ export default async function BookingDetail({ params, searchParams }: PageProps<
           <IconCircleCheck aria-hidden size={20} /> Turno agendado. Ya figura en la agenda.
         </p>
       )}
+      {justClosed && (
+        <p
+          role="status"
+          className="mx-4 mb-2 flex items-center gap-2 rounded-2xl bg-ok-soft p-3 font-semibold text-on-ok"
+        >
+          <IconCircleCheck aria-hidden size={20} /> Turno finalizado y cobrado. Ya suma en la Caja.
+        </p>
+      )}
       <main className="flex-1 pb-8 md:grid md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] md:items-start md:gap-6 md:pt-2">
         <div className="px-4 pt-2 pb-5 md:mx-4 md:mr-0 md:rounded-3xl md:border md:border-line md:bg-surface md:p-6">
-          <Badge tone={status.tone}>{status.label}</Badge>
+          <div className="flex flex-wrap gap-2">
+            <Badge tone={status.tone}>{status.label}</Badge>
+            {b.status === "confirmed" && b.startedAt && (
+              <Badge tone="accent">
+                En curso · <Elapsed since={b.startedAt} />
+              </Badge>
+            )}
+          </div>
           <h1 className="mt-2 font-display text-4xl">{b.clientName}</h1>
           <p className="text-muted">{b.clientPhone ? formatArMobile(b.clientPhone) : "Sin celular registrado"}</p>
           {/* Contacto en un toque: el canal real de una peluquería es WhatsApp. */}
@@ -73,6 +93,26 @@ export default async function BookingDetail({ params, searchParams }: PageProps<
         </div>
 
         <div>
+          {checkout && (
+            <section aria-labelledby="cobro" className="mx-4 mb-4 rounded-3xl bg-ok-soft p-5 text-on-ok">
+              <h2 id="cobro" className="flex items-center gap-2 text-xs font-bold tracking-wider uppercase">
+                <IconCash aria-hidden size={18} /> Cobro
+              </h2>
+              <p className="mt-1 font-display text-4xl tabular-nums">
+                {formatMoney(checkout.chargedArs + checkout.depositArs)}
+              </p>
+              <p className="text-sm">
+                {PAYMENT_CHANNEL_LABEL[checkout.channel]}
+                {checkout.depositArs > 0 && ` · incluye seña de ${formatMoney(checkout.depositArs)}`}
+                {checkout.tipArs > 0 && ` · propina ${formatMoney(checkout.tipArs)}`}
+              </p>
+              <p className="mt-2 text-sm">
+                Duró <strong>{formatDuration(checkout.actualDurationMin)}</strong>
+                {checkout.actualDurationMin !== b.durationMin && ` (agendado: ${formatDuration(b.durationMin)})`}
+              </p>
+              {checkout.note && <p className="mt-2 text-sm italic">“{checkout.note}”</p>}
+            </section>
+          )}
           <KeyValueList
             rows={[
               ["Servicio", s.name],
@@ -92,11 +132,17 @@ export default async function BookingDetail({ params, searchParams }: PageProps<
 
           {b.status === "confirmed" && (
             <div className="flex flex-col gap-2 px-4 pt-6">
-              {canMarkAttended && (
-                <form action={staffMarkAttended}>
+              {canClose && (
+                <ButtonLink href={`/panel/turnos/${b.id}/cerrar`} className="w-full">
+                  <IconCash aria-hidden size={20} /> Finalizar y cobrar
+                </ButtonLink>
+              )}
+              {canStart && (
+                // Opcional: arranca el reloj para saber cuánto llevó de verdad.
+                <form action={staffStartBooking}>
                   <input type="hidden" name="bookingId" value={b.id} />
-                  <SubmitButton className="w-full" pendingLabel="Guardando…">
-                    Marcar como atendido
+                  <SubmitButton variant="secondary" className="w-full" pendingLabel="Empezando…">
+                    <IconPlayerPlay aria-hidden size={18} /> Empezar turno
                   </SubmitButton>
                 </form>
               )}

@@ -13,7 +13,16 @@ import {
   type AgendaSnapshot,
   type Now,
 } from "@/domain/availability";
-import { clientCanModify, ownerCanMarkAttended } from "@/domain/policies";
+import { periodRange, summarizeEarnings, type Period } from "@/domain/earnings";
+import { formatMoney } from "@/domain/money";
+import {
+  canClose,
+  canStart,
+  clientCanModify,
+  depositAmount,
+  suggestedCharge,
+  suggestedDuration,
+} from "@/domain/policies";
 import { addDays, formatRelativeDay, formatTime, minutesUntil, nowIn } from "@/domain/time";
 import {
   ANY_PROFESSIONAL,
@@ -21,6 +30,7 @@ import {
   type Booking,
   type IsoDate,
   type MinuteOfDay,
+  type PaymentChannel,
   type PaymentMethod,
   type ProfessionalChoice,
   type Service,
@@ -213,7 +223,7 @@ export async function getBookingDetail(user: StaffSessionUser, id: string) {
   const [now, catalog] = await Promise.all([currentNow(), getCatalog()]);
   const booking = await repo().getBooking(id);
   if (!booking || !canManageProfessional(user, booking.professionalId)) return null;
-  return { now, catalog, booking, canMarkAttended: ownerCanMarkAttended(booking, now) };
+  return { now, catalog, booking, canStart: canStart(booking, now), canClose: canClose(booking, now) };
 }
 
 export type ActivityView = Omit<ActivityEvent, "readBy"> & { read: boolean };
@@ -431,13 +441,108 @@ export async function cancelByStaff(user: StaffSessionUser, bookingId: string): 
   return { ok: true, value: undefined };
 }
 
-export async function markAttended(user: StaffSessionUser, bookingId: string): Promise<CommandResult> {
+/* ───────────── Cierre del turno: empezar, cobrar y finalizar ───────────── */
+
+/** "Empezar": arranca el reloj para medir cuánto lleva de verdad atender. */
+export async function startBooking(user: StaffSessionUser, bookingId: string): Promise<CommandResult> {
   const now = nowIn(BUSINESS.timeZone);
   const booking = await repo().getBooking(bookingId);
   if (!booking || !canManageProfessional(user, booking.professionalId)) return fail(NOT_YOURS);
-  if (!ownerCanMarkAttended(booking, now)) return fail("Todavía no se puede marcar como atendido.");
-  await repo().updateBooking(bookingId, { status: "attended" });
+  if (!canStart(booking, now)) return fail("Este turno todavía no se puede empezar.");
+  await repo().updateBooking(bookingId, { startedAt: new Date().toISOString(), unseenByOwner: false });
   return { ok: true, value: undefined };
+}
+
+/** Lo que se precarga en la pantalla de cierre. */
+export async function getCheckoutDraft(user: StaffSessionUser, bookingId: string) {
+  const detail = await getBookingDetail(user, bookingId);
+  if (!detail) return null;
+  const { booking, catalog } = detail;
+  const service = catalog.serviceById.get(booking.serviceId)!;
+  return {
+    ...detail,
+    service,
+    listPrice: service.variablePrice ? null : service.priceArs,
+    depositArs: booking.payment === "deposit" && !service.variablePrice ? depositAmount(BUSINESS, service) : 0,
+    suggestedChargeArs: suggestedCharge(BUSINESS, service, booking),
+    suggestedDurationMin: suggestedDuration(booking, Date.now()),
+  };
+}
+
+/**
+ * "Finalizar y cobrar": registra lo cobrado (casi siempre en el local, en
+ * efectivo o transferencia), la propina y la duración real, y da el turno
+ * por terminado. Es lo que alimenta el panel de Caja.
+ */
+export async function closeBooking(
+  user: StaffSessionUser,
+  input: {
+    bookingId: string;
+    chargedArs: number;
+    tipArs: number;
+    channel: PaymentChannel;
+    actualDurationMin: number;
+    note?: string;
+  },
+): Promise<CommandResult<Booking>> {
+  return repo().transaction(async () => {
+    const now = nowIn(BUSINESS.timeZone);
+    const booking = await repo().getBooking(input.bookingId);
+    if (!booking || !canManageProfessional(user, booking.professionalId)) return fail(NOT_YOURS);
+    if (booking.status === "attended") return fail("Este turno ya está cerrado.");
+    if (!canClose(booking, now)) return fail("Este turno todavía no se puede cerrar.");
+
+    const catalog = await getCatalog();
+    const service = catalog.serviceById.get(booking.serviceId);
+    const depositArs =
+      booking.payment === "deposit" && service && !service.variablePrice ? depositAmount(BUSINESS, service) : 0;
+    const updated = (await repo().updateBooking(booking.id, {
+      status: "attended",
+      unseenByOwner: false,
+      checkout: {
+        chargedArs: input.chargedArs,
+        depositArs,
+        tipArs: input.tipArs,
+        channel: input.channel,
+        actualDurationMin: input.actualDurationMin,
+        closedAt: new Date().toISOString(),
+        closedBy: user.id,
+        note: input.note || undefined,
+      },
+    }))!;
+    await logActivity("closed", updated, `${user.firstName} cerró el turno de ${updated.clientName}`, now, {
+      readBy: [user.id],
+      detail: `Cobrado ${formatMoney(input.chargedArs + depositArs)} · ${input.actualDurationMin} min`,
+    });
+    return { ok: true, value: updated } as const;
+  });
+}
+
+/* ───────────── Caja: ingresos y tiempo invertido ───────────── */
+
+/**
+ * Resumen del período. Un peluquero ve solo lo suyo; el admin, todo el local
+ * (o un profesional si filtra).
+ */
+export async function getEarnings(user: StaffSessionUser, period: Period, requestedPro: string | null) {
+  const [now, catalog] = await Promise.all([currentNow(), getCatalog()]);
+  const scope = staffScope(user);
+  const professionalId = scope ?? requestedPro;
+  const range = periodRange(period, now.date);
+  const all = await repo().listBookings(range);
+  const visible = professionalId ? all.filter((b) => b.professionalId === professionalId) : all;
+  const closed = visible
+    .filter((b) => b.status === "attended" && b.checkout)
+    .sort((a, b) => b.date.localeCompare(a.date) || b.start - a.start);
+  return {
+    now,
+    catalog,
+    range,
+    professionalId,
+    team: catalog.professionals.filter((p) => !scope || p.id === scope),
+    summary: summarizeEarnings(visible, range, now),
+    closed,
+  };
 }
 
 export async function markSeen(user: StaffSessionUser, bookingId: string) {

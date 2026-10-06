@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import {
   IconActivity,
+  IconCash,
   IconCalendarCheck,
   IconCalendarEvent,
   IconHome,
@@ -24,6 +25,7 @@ const ICONS = {
   agenda: IconCalendarEvent,
   activity: IconActivity,
   team: IconUsersGroup,
+  cash: IconCash,
 };
 
 export interface Tab {

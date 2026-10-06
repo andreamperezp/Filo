@@ -1,4 +1,4 @@
-import { IconPlus, IconRefresh, IconX } from "@tabler/icons-react";
+import { IconCash, IconPlus, IconRefresh, IconX } from "@tabler/icons-react";
 import type { ActivityKind } from "@/domain/types";
 import { staffMarkActivityRead } from "@/server/actions";
 import { getActivityFor } from "@/server/bookings";
@@ -12,6 +12,7 @@ const KIND: Record<ActivityKind, { Icon: typeof IconPlus; className: string; lab
   created: { Icon: IconPlus, className: "bg-primary text-on-primary", label: "Nueva reserva" },
   cancelled: { Icon: IconX, className: "bg-danger-soft text-danger", label: "Cancelación" },
   rescheduled: { Icon: IconRefresh, className: "bg-surface-2 text-ink", label: "Cambio de horario" },
+  closed: { Icon: IconCash, className: "bg-ok-soft text-on-ok", label: "Turno cerrado" },
 };
 
 const rtf = new Intl.RelativeTimeFormat("es-AR", { numeric: "auto" });

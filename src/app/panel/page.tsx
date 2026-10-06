@@ -2,9 +2,10 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { IconLock, IconLockOpen, IconPlus } from "@tabler/icons-react";
 import { BUSINESS } from "@/data/catalog";
-import { dayGrid } from "@/domain/availability";
+import { dayGrid, type Now } from "@/domain/availability";
+import { bookingRevenue } from "@/domain/earnings";
 import { formatMoney } from "@/domain/money";
-import { depositAmount } from "@/domain/policies";
+import { depositAmount, isPendingCheckout } from "@/domain/policies";
 import { dayOfMonth, dayShortName, formatDuration, formatLongDay, formatTime, isIsoDate, weekday } from "@/domain/time";
 import type { Booking } from "@/domain/types";
 import { staffToggleBlock } from "@/server/actions";
@@ -148,7 +149,7 @@ export default async function StaffAgenda({ searchParams }: PageProps<"/panel">)
           {agenda.closed ? (
             <Empty>El local está cerrado.</Empty>
           ) : proId ? (
-            <ProfessionalDay date={agenda.date} proId={proId} rows={agenda.rows} catalog={catalog} />
+            <ProfessionalDay date={agenda.date} proId={proId} rows={agenda.rows} catalog={catalog} now={agenda.now} />
           ) : bookings.length === 0 ? (
             <Empty>No hay turnos este día.</Empty>
           ) : (
@@ -157,7 +158,7 @@ export default async function StaffAgenda({ searchParams }: PageProps<"/panel">)
               <ol className="flex flex-col gap-2 px-4 md:hidden">
                 {bookings.map((b) => (
                   <li key={b.id}>
-                    <BookingCard booking={b} catalog={catalog} showPro />
+                    <BookingCard booking={b} catalog={catalog} now={agenda.now} showPro />
                   </li>
                 ))}
               </ol>
@@ -178,7 +179,7 @@ export default async function StaffAgenda({ searchParams }: PageProps<"/panel">)
                         <ol className="flex flex-col gap-2">
                           {own.map((b) => (
                             <li key={b.id}>
-                              <BookingCard booking={b} catalog={catalog} compact />
+                              <BookingCard booking={b} catalog={catalog} now={agenda.now} compact />
                             </li>
                           ))}
                         </ol>
@@ -204,11 +205,13 @@ function Empty({ children }: { children: ReactNode }) {
 function BookingCard({
   booking: b,
   catalog,
+  now,
   showPro = false,
   compact = false,
 }: {
   booking: Booking;
   catalog: Catalog;
+  now: Now;
   showPro?: boolean;
   /** Para columnas angostas (tablet): hora arriba y nombre completo debajo, sin recortar. */
   compact?: boolean;
@@ -217,13 +220,17 @@ function BookingCard({
   const p = catalog.professionalById.get(b.professionalId)!;
   const label = bookingServiceLabel(catalog, b);
   const done = b.status === "attended";
-  const payment = (
-    <Badge tone={done ? "muted" : b.payment === "deposit" ? "ok" : "accent"}>
-      {done
-        ? "Atendido"
-        : b.payment === "deposit"
-          ? `Seña ${formatMoney(depositAmount(BUSINESS, s))}`
-          : "Paga en local"}
+  // Estado del día de un vistazo: cobrado, en curso, por cobrar o cómo paga.
+  const pending = isPendingCheckout(b, now);
+  const payment = done ? (
+    <Badge tone="ok">Cobrado {b.checkout ? formatMoney(bookingRevenue(b)) : ""}</Badge>
+  ) : b.startedAt ? (
+    <Badge tone="accent">En curso</Badge>
+  ) : pending ? (
+    <Badge tone="danger">Por cobrar</Badge>
+  ) : (
+    <Badge tone={b.payment === "deposit" ? "ok" : "accent"}>
+      {b.payment === "deposit" ? `Seña ${formatMoney(depositAmount(BUSINESS, s))}` : "Paga en local"}
     </Badge>
   );
 
@@ -234,7 +241,7 @@ function BookingCard({
         className={cx(
           "block rounded-2xl border bg-surface p-3 transition hover:border-primary",
           b.unseenByOwner ? "border-primary" : "border-line",
-          done && "opacity-60",
+          done && "opacity-75",
         )}
       >
         <p className="flex items-center justify-between gap-2 text-sm tabular-nums">
@@ -292,9 +299,11 @@ function ProfessionalDay({
   proId,
   rows,
   catalog,
+  now,
 }: {
   date: string;
   proId: string;
+  now: Now;
   rows: Awaited<ReturnType<typeof getStaffDay>>["rows"];
   catalog: Catalog;
 }) {
@@ -305,7 +314,7 @@ function ProfessionalDay({
         if (row.kind === "booking") {
           return (
             <li key={row.booking.id}>
-              <BookingCard booking={row.booking} catalog={catalog} />
+              <BookingCard booking={row.booking} catalog={catalog} now={now} />
             </li>
           );
         }
