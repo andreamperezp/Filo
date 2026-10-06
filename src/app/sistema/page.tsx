@@ -37,10 +37,10 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Filo System · Tu peluquería con su propia app de turnos",
     description: "Reservas online con tu marca, agenda por profesional y caja con valor por hora.",
-    images: [{ url: salon.src, width: salon.width, height: salon.height }],
     locale: "es_AR",
     type: "website",
   },
+  twitter: { card: "summary_large_image" },
 };
 
 /**
