@@ -1,7 +1,6 @@
 import { z } from "zod";
 import { isIsoDate } from "@/domain/time";
-import { ANY_PROFESSIONAL, type ProfessionalChoice } from "@/domain/types";
-import { PROFESSIONAL_BY_ID, SERVICE_BY_ID } from "@/data/catalog";
+import type { ProfessionalChoice } from "@/domain/types";
 
 /**
  * El estado del flujo de reserva vive en la URL (`?servicio=…&profesional=…`).
@@ -9,16 +8,9 @@ import { PROFESSIONAL_BY_ID, SERVICE_BY_ID } from "@/data/catalog";
  * recargar sin perder nada y las pantallas son Server Components sin estado.
  */
 const schema = z.object({
-  servicio: z
-    .string()
-    .refine((v) => SERVICE_BY_ID.has(v))
-    .optional()
-    .catch(undefined),
-  profesional: z
-    .string()
-    .refine((v) => v === ANY_PROFESSIONAL || PROFESSIONAL_BY_ID.has(v))
-    .optional()
-    .catch(undefined),
+  // Forma básica acá; que el servicio/profesional exista lo valida cada página contra el catálogo vigente.
+  servicio: z.string().max(40).optional().catch(undefined),
+  profesional: z.string().max(40).optional().catch(undefined),
   fecha: z.string().refine(isIsoDate).optional().catch(undefined),
   hora: z.coerce.number().int().min(0).max(1439).optional().catch(undefined),
   pago: z.enum(["in_store", "deposit"]).optional().catch(undefined),

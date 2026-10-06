@@ -3,14 +3,14 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/server/session";
 import { isProduction } from "@/server/env";
 import { AuthShell } from "../auth-shell";
-import { OwnerForm } from "../forms";
+import { StaffForm } from "../forms";
 
 export const metadata = { title: "Panel del equipo" };
 
-/** Ingreso de la dueña: email + contraseña (cuenta con acceso a datos de clientes). */
+/** Ingreso del equipo (superadmin y peluqueros): email + contraseña. */
 export default async function TeamSignIn() {
   const session = await getSession();
-  if (session?.role === "owner") redirect("/duena");
+  if (session?.role === "staff") redirect("/panel");
 
   return (
     <AuthShell
@@ -25,7 +25,7 @@ export default async function TeamSignIn() {
         </p>
       }
     >
-      <OwnerForm />
+      <StaffForm />
       {!isProduction && (
         <p className="mt-5 rounded-xl border border-dashed border-merino/40 p-3 text-sm text-merino/85">
           Demo: los datos de prueba están en <code className="font-mono text-merino">.env.development</code>.

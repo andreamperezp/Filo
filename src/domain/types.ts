@@ -23,19 +23,58 @@ export interface Service {
   durationMin: number;
   /** Precio en pesos argentinos, sin decimales. */
   priceArs: number;
+  /** Precio a convenir (no se muestra monto ni se ofrece seña). */
+  variablePrice?: boolean;
+  /** Solo lo puede agendar el equipo (no aparece en la app de clientes). */
+  staffOnly?: boolean;
   icon: ServiceIcon;
-  /** Profesionales habilitados para hacer este servicio. */
+  /**
+   * Profesionales habilitados para hacer este servicio. Se calcula a partir
+   * del equipo activo (`Professional.serviceIds`), no se edita a mano.
+   */
   professionalIds: ProfessionalId[];
 }
 
-export type ServiceIcon = "scissors" | "razor-electric" | "razor" | "droplet" | "sparkles" | "brush" | "spray";
+/** Definición de un servicio, sin el equipo asignado. */
+export type ServiceDef = Omit<Service, "professionalIds">;
+
+export type ServiceIcon = "scissors" | "razor-electric" | "razor" | "droplet" | "sparkles" | "brush" | "spray" | "dots";
 
 export interface Professional {
   id: ProfessionalId;
   name: string;
   role: string;
   /** Token de color (ver `globals.css`) para identificarlo en la agenda. */
-  colorToken: "pro-1" | "pro-2" | "pro-3";
+  colorToken: ProColor;
+  /** Servicios que hace. */
+  serviceIds: ServiceId[];
+  /** Inactivo: no recibe turnos nuevos, pero conserva su historial. */
+  active: boolean;
+}
+
+export const PRO_COLORS = ["pro-1", "pro-2", "pro-3", "pro-4", "pro-5", "pro-6"] as const;
+export type ProColor = (typeof PRO_COLORS)[number];
+
+/**
+ * Persona del equipo con acceso al panel.
+ * - `admin` (superadmin): ve y gestiona todos los turnos y administra el equipo.
+ * - `professional`: ve y gestiona solo su propia agenda.
+ */
+export type StaffRole = "admin" | "professional";
+
+export interface StaffUser {
+  id: string;
+  name: string;
+  email: string;
+  role: StaffRole;
+  /** Profesional que atiende esta persona (`null` si es admin y no atiende). */
+  professionalId: ProfessionalId | null;
+  /** Hash scrypt (`salt:hash`). Nunca la contraseña en texto. */
+  passwordHash: string;
+  /** Contraseña temporal: tiene que cambiarla al ingresar. */
+  mustChangePassword: boolean;
+  active: boolean;
+  createdAt: string;
 }
 
 /** Horario de apertura por día de la semana (0 = domingo). `null` = cerrado. */
@@ -68,13 +107,17 @@ export interface Booking {
   date: IsoDate;
   start: MinuteOfDay;
   serviceId: ServiceId;
+  /** Duración real del turno (normalmente la del servicio; en "Otro" la elige el equipo). */
+  durationMin: number;
+  /** Nota interna del equipo (ej. el motivo de un servicio "Otro"). */
+  note?: string;
   professionalId: ProfessionalId;
   clientId: string;
   clientName: string;
   clientPhone: string;
   payment: PaymentMethod;
   status: BookingStatus;
-  /** La dueña todavía no lo vio (se resalta en la agenda). */
+  /** El equipo todavía no lo vio (se resalta como "Nuevo" en la agenda). */
   unseenByOwner: boolean;
   createdAt: string;
 }
@@ -102,7 +145,8 @@ export interface ActivityEvent {
   title: string;
   detail: string;
   at: string;
-  read: boolean;
+  /** Personas del equipo que ya lo vieron (cada una tiene su propio "sin leer"). */
+  readBy: string[];
 }
 
 /** Opción especial: "cualquier profesional disponible". */

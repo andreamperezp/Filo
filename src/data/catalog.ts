@@ -1,8 +1,8 @@
-import type { Business, Professional, Service } from "@/domain/types";
+import type { Business, Professional, Service, ServiceDef } from "@/domain/types";
 
 /**
- * Configuración del local. En producción vive en la tabla `business` y la
- * dueña la edita desde "Ajustes"; acá queda fija para el MVP.
+ * Configuración del local. En producción vive en la tabla `business` y el
+ * admin la edita desde "Ajustes"; acá queda fija para el MVP.
  */
 export const BUSINESS: Business = {
   name: "Filo",
@@ -26,22 +26,11 @@ export const BUSINESS: Business = {
   bookingWindowDays: 14,
 };
 
-export const PROFESSIONALS: Professional[] = [
-  { id: "romi", name: "Romina", role: "Dueña · colorista", colorToken: "pro-1" },
-  { id: "lucas", name: "Lucas", role: "Barbero", colorToken: "pro-2" },
-  { id: "sofi", name: "Sofía", role: "Corte y peinado", colorToken: "pro-3" },
-];
+/** El equipo agenda con más anticipación que los clientes (turnos de color, eventos). */
+export const STAFF_BOOKING_WINDOW_DAYS = 45;
 
-export const SERVICES: Service[] = [
-  {
-    id: "corte",
-    name: "Corte",
-    description: "Con lavado",
-    durationMin: 30,
-    priceArs: 12000,
-    icon: "scissors",
-    professionalIds: ["lucas", "sofi", "romi"],
-  },
+export const SERVICE_DEFS: ServiceDef[] = [
+  { id: "corte", name: "Corte", description: "Con lavado", durationMin: 30, priceArs: 12000, icon: "scissors" },
   {
     id: "corte-barba",
     name: "Corte + barba",
@@ -49,26 +38,9 @@ export const SERVICES: Service[] = [
     durationMin: 60,
     priceArs: 16000,
     icon: "razor-electric",
-    professionalIds: ["lucas"],
   },
-  {
-    id: "barba",
-    name: "Barba",
-    description: "Toalla caliente",
-    durationMin: 30,
-    priceArs: 7000,
-    icon: "razor",
-    professionalIds: ["lucas"],
-  },
-  {
-    id: "tintura",
-    name: "Tintura",
-    description: "Color completo",
-    durationMin: 90,
-    priceArs: 28000,
-    icon: "droplet",
-    professionalIds: ["romi", "sofi"],
-  },
+  { id: "barba", name: "Barba", description: "Toalla caliente", durationMin: 30, priceArs: 7000, icon: "razor" },
+  { id: "tintura", name: "Tintura", description: "Color completo", durationMin: 90, priceArs: 28000, icon: "droplet" },
   {
     id: "mechas",
     name: "Mechas / reflejos",
@@ -76,17 +48,8 @@ export const SERVICES: Service[] = [
     durationMin: 120,
     priceArs: 45000,
     icon: "sparkles",
-    professionalIds: ["romi"],
   },
-  {
-    id: "alisado",
-    name: "Alisado",
-    description: "Sin formol",
-    durationMin: 150,
-    priceArs: 55000,
-    icon: "brush",
-    professionalIds: ["romi"],
-  },
+  { id: "alisado", name: "Alisado", description: "Sin formol", durationMin: 150, priceArs: 55000, icon: "brush" },
   {
     id: "lavado",
     name: "Lavado + peinado",
@@ -94,15 +57,66 @@ export const SERVICES: Service[] = [
     durationMin: 30,
     priceArs: 10000,
     icon: "spray",
-    professionalIds: ["sofi", "romi"],
   },
 ];
 
-export const SERVICE_BY_ID: ReadonlyMap<string, Service> = new Map(SERVICES.map((s) => [s.id, s]));
-export const PROFESSIONAL_BY_ID: ReadonlyMap<string, Professional> = new Map(PROFESSIONALS.map((p) => [p.id, p]));
+/**
+ * "Otro": para lo que no está en la lista (retoque, consulta, novia…). Solo lo
+ * agenda el equipo, elige la duración y opcionalmente anota el motivo.
+ */
+export const OTHER_SERVICE_ID = "otro";
+export const OTHER_SERVICE: ServiceDef = {
+  id: OTHER_SERVICE_ID,
+  name: "Otro",
+  description: "Duración y motivo a elección",
+  durationMin: 30,
+  priceArs: 0,
+  variablePrice: true,
+  staffOnly: true,
+  icon: "dots",
+};
+export const OTHER_DURATIONS = [30, 60, 90, 120, 180] as const;
+
+/** Equipo inicial (en producción: tabla `professionals`, editable por el admin). */
+export const SEED_PROFESSIONALS: Professional[] = [
+  {
+    id: "romi",
+    name: "Romina",
+    role: "Dueña · colorista",
+    colorToken: "pro-1",
+    serviceIds: ["corte", "tintura", "mechas", "alisado", "lavado", OTHER_SERVICE_ID],
+    active: true,
+  },
+  {
+    id: "lucas",
+    name: "Lucas",
+    role: "Barbero",
+    colorToken: "pro-2",
+    serviceIds: ["corte", "corte-barba", "barba", OTHER_SERVICE_ID],
+    active: true,
+  },
+  {
+    id: "sofi",
+    name: "Sofía",
+    role: "Corte y peinado",
+    colorToken: "pro-3",
+    serviceIds: ["corte", "tintura", "lavado", OTHER_SERVICE_ID],
+    active: true,
+  },
+];
+
+/** Servicios con su equipo calculado a partir de quién está activo y qué hace. */
+export function buildServices(defs: readonly ServiceDef[], team: readonly Professional[]): Service[] {
+  return defs.map((def) => ({
+    ...def,
+    professionalIds: team.filter((p) => p.active && p.serviceIds.includes(def.id)).map((p) => p.id),
+  }));
+}
+
+/** Catálogo con el equipo inicial: lo usan el seed y los tests. */
+export const SEED_SERVICE_BY_ID: ReadonlyMap<string, Service> = new Map(
+  buildServices([...SERVICE_DEFS, OTHER_SERVICE], SEED_PROFESSIONALS).map((s) => [s.id, s]),
+);
 
 /** Cliente de ejemplo con historial (ingresa con su celular). */
 export const SEED_CLIENT = { id: "client-martin", name: "Martín Díaz", phone: "+5491155238841" };
-
-/** Cuenta de la dueña. La contraseña se configura por variable de entorno (ver `.env.example`). */
-export const OWNER = { id: "owner-romina", name: "Romina", firstName: "Romina" };

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BUSINESS, SERVICE_BY_ID } from "@/data/catalog";
+import { BUSINESS, SEED_SERVICE_BY_ID as SERVICE_BY_ID } from "@/data/catalog";
 import { amountDueInStore, clientCanModify, depositAmount, ownerCanMarkAttended } from "./policies";
 import type { Booking } from "./types";
 
@@ -8,6 +8,7 @@ const booking = (partial: Partial<Booking> = {}): Booking => ({
   date: "2026-10-08",
   start: 18 * 60,
   serviceId: "corte-barba",
+  durationMin: 60,
   professionalId: "lucas",
   clientId: "c1",
   clientName: "Martín",

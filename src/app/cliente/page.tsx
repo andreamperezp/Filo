@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { IconArrowRight, IconChevronRight, IconClock, IconMapPin } from "@tabler/icons-react";
-import { BUSINESS, PROFESSIONAL_BY_ID, SERVICES, SERVICE_BY_ID } from "@/data/catalog";
+import { BUSINESS } from "@/data/catalog";
 import { formatMoney } from "@/domain/money";
 import { formatDuration } from "@/domain/time";
 import { describeWhen, getClientBookings } from "@/server/bookings";
 import { requireClient } from "@/server/session";
 import { ButtonLink, Screen, SectionTitle, ServiceIcon } from "@/components/ui";
+import { getCatalog } from "@/server/catalog";
 
 export const metadata = { title: "Inicio" };
 
@@ -15,6 +16,7 @@ export const metadata = { title: "Inicio" };
  * derecha el catálogo de servicios, todo visible sin scroll.
  */
 export default async function ClientHome() {
+  const catalog = await getCatalog();
   const client = await requireClient();
   const { upcoming, now } = await getClientBookings(client.id);
   const next = upcoming[0];
@@ -42,7 +44,8 @@ export default async function ClientHome() {
                   </p>
                   <p className="mt-1 text-lg font-bold md:text-xl">{describeWhen(next, now.date)}</p>
                   <p className="text-sm">
-                    {SERVICE_BY_ID.get(next.serviceId)?.name} con {PROFESSIONAL_BY_ID.get(next.professionalId)?.name}
+                    {catalog.serviceById.get(next.serviceId)?.name} con{" "}
+                    {catalog.professionalById.get(next.professionalId)?.name}
                   </p>
                 </div>
                 <IconChevronRight aria-hidden size={20} />
@@ -75,7 +78,7 @@ export default async function ClientHome() {
             aria-labelledby="services-title"
             className="mx-4 divide-y divide-line rounded-2xl border border-line bg-surface"
           >
-            {SERVICES.map((s) => (
+            {catalog.publicServices.map((s) => (
               <li key={s.id}>
                 {/* Atajo: tocar un servicio saltea el paso 1 del flujo. */}
                 <Link

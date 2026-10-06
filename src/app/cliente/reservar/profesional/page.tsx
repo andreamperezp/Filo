@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { IconUsers } from "@tabler/icons-react";
 import { formatDuration, formatRelativeDay, formatTime } from "@/domain/time";
-import { getProfessionalOptions, serviceOrNull } from "@/server/bookings";
+import { getProfessionalOptions, getPublicService } from "@/server/bookings";
 import { Avatar, ChoiceCard, H1, Screen, TopBar } from "@/components/ui";
 import { flowHref, readFlowParams } from "../params";
 
@@ -10,7 +10,7 @@ export const metadata = { title: "Elegí con quién" };
 /** Paso 2 de 4: profesional (o "cualquiera disponible"). */
 export default async function PickProfessional({ searchParams }: PageProps<"/cliente/reservar/profesional">) {
   const params = await readFlowParams(searchParams);
-  const service = serviceOrNull(params.servicio);
+  const service = await getPublicService(params.servicio);
   if (!service) redirect("/cliente/reservar");
 
   const { options, now } = await getProfessionalOptions(service);

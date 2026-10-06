@@ -1,7 +1,10 @@
 import { dayGrid } from "@/domain/availability";
 import { addDays, formatRelativeDay, formatTime, minutesUntil } from "@/domain/time";
-import type { ActivityEvent, Booking, Client, IsoDate, MinuteOfDay } from "@/domain/types";
-import { BUSINESS, SEED_CLIENT, PROFESSIONALS, SERVICES } from "./catalog";
+import type { ActivityEvent, Booking, Client, IsoDate, MinuteOfDay, Professional } from "@/domain/types";
+import { BUSINESS, SEED_CLIENT, SEED_PROFESSIONALS, SEED_SERVICE_BY_ID } from "./catalog";
+
+const SERVICES = [...SEED_SERVICE_BY_ID.values()].filter((s) => !s.staffOnly);
+const PROFESSIONALS = SEED_PROFESSIONALS;
 
 const CLIENTS = [
   "Valentina Ríos",
@@ -30,11 +33,16 @@ function fakePhone(seed: number): string {
   return `+54911${4000 + ((seed * 731) % 5000)}${1000 + ((seed * 37) % 9000)}`;
 }
 
-/** Agenda de ejemplo para los próximos 14 días, relativa a "hoy". */
+/**
+ * Agenda de ejemplo para los próximos 14 días, relativa a "hoy".
+ * `ownerId` es la persona del equipo que "ya vio" la actividad vieja.
+ */
 export function buildSeed(
   today: IsoDate,
   nowMinute: MinuteOfDay,
+  ownerId: string,
 ): {
+  professionals: Professional[];
   clients: Client[];
   bookings: Booking[];
   activity: ActivityEvent[];
@@ -46,6 +54,7 @@ export function buildSeed(
     date,
     start,
     serviceId,
+    durationMin: SEED_SERVICE_BY_ID.get(serviceId)!.durationMin,
     professionalId: "lucas",
     status,
     clientId: SEED_CLIENT.id,
@@ -62,10 +71,9 @@ export function buildSeed(
     martin("b-martin-ago", addDays(today, -44), 17 * 60, "barba", "attended"),
   ];
   const taken = (date: IsoDate, pro: string, start: number, dur: number) =>
-    bookings.some((b) => {
-      const d = SERVICES.find((s) => s.id === b.serviceId)!.durationMin;
-      return b.date === date && b.professionalId === pro && start < b.start + d && b.start < start + dur;
-    });
+    bookings.some(
+      (b) => b.date === date && b.professionalId === pro && start < b.start + b.durationMin && b.start < start + dur,
+    );
 
   let n = 0;
   for (let i = 0; i < BUSINESS.bookingWindowDays; i++) {
@@ -86,6 +94,7 @@ export function buildSeed(
               date,
               start: grid[k],
               serviceId: svc.id,
+              durationMin: svc.durationMin,
               professionalId: pro.id,
               clientId: `client-seed-${clientName}`,
               clientName,
@@ -123,12 +132,12 @@ export function buildSeed(
           title: title(b),
           detail: `${formatRelativeDay(b.date, today)} · ${formatTime(b.start)} · ${PROFESSIONALS.find((p) => p.id === b.professionalId)?.name}`,
           at: new Date(Date.now() - minAgo * 60_000).toISOString(),
-          read: i > 0,
+          readBy: i > 0 ? [ownerId] : [],
         };
       })
     : [];
 
   const clients: Client[] = [{ ...SEED_CLIENT, createdAt }];
 
-  return { clients, bookings, activity };
+  return { professionals: structuredClone(SEED_PROFESSIONALS), clients, bookings, activity };
 }

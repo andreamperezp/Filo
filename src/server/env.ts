@@ -11,8 +11,10 @@ import { z } from "zod";
  */
 const schema = z.object({
   SESSION_SECRET: z.string().min(32, "SESSION_SECRET debe tener al menos 32 caracteres"),
-  OWNER_EMAIL: z.email(),
-  OWNER_PASSWORD: z.string().min(10, "OWNER_PASSWORD debe tener al menos 10 caracteres"),
+  ADMIN_EMAIL: z.email(),
+  ADMIN_PASSWORD: z.string().min(10, "ADMIN_PASSWORD debe tener al menos 10 caracteres"),
+  /** Solo desarrollo: crea cuentas de prueba para Lucas y Sofía. */
+  DEV_STAFF_PASSWORD: z.string().min(10).optional(),
 });
 
 let cached: z.infer<typeof schema> | undefined;
@@ -20,8 +22,9 @@ let cached: z.infer<typeof schema> | undefined;
 export function env() {
   cached ??= schema.parse({
     SESSION_SECRET: process.env.SESSION_SECRET,
-    OWNER_EMAIL: process.env.OWNER_EMAIL,
-    OWNER_PASSWORD: process.env.OWNER_PASSWORD,
+    ADMIN_EMAIL: process.env.ADMIN_EMAIL,
+    ADMIN_PASSWORD: process.env.ADMIN_PASSWORD,
+    DEV_STAFF_PASSWORD: process.env.NODE_ENV === "production" ? undefined : process.env.DEV_STAFF_PASSWORD,
   });
   return cached;
 }

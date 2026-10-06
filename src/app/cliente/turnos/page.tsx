@@ -1,4 +1,4 @@
-import { BUSINESS, PROFESSIONAL_BY_ID, SERVICE_BY_ID } from "@/data/catalog";
+import { BUSINESS } from "@/data/catalog";
 import { formatRelativeDay, formatTime } from "@/domain/time";
 import { cancelMyBooking } from "@/server/actions";
 import { describeWhen, getClientBookings } from "@/server/bookings";
@@ -6,10 +6,12 @@ import { requireClient } from "@/server/session";
 import { ConfirmDialog } from "@/components/forms";
 import { Badge, ButtonLink, H1, Screen, SectionTitle } from "@/components/ui";
 import { flowHref } from "../reservar/params";
+import { getCatalog } from "@/server/catalog";
 
 export const metadata = { title: "Mis turnos" };
 
 export default async function MyBookings() {
+  const catalog = await getCatalog();
   const client = await requireClient();
   const { upcoming, past, now } = await getClientBookings(client.id);
   const whatsapp = `https://wa.me/${BUSINESS.phone.replace(/\D/g, "")}`;
@@ -32,8 +34,8 @@ export default async function MyBookings() {
         ) : (
           <ul aria-labelledby="upcoming" className="grid gap-3 px-4 md:grid-cols-2">
             {upcoming.map((b) => {
-              const service = SERVICE_BY_ID.get(b.serviceId)!;
-              const pro = PROFESSIONAL_BY_ID.get(b.professionalId)!;
+              const service = catalog.serviceById.get(b.serviceId)!;
+              const pro = catalog.professionalById.get(b.professionalId)!;
               return (
                 <li key={b.id} className="rounded-2xl border border-line bg-surface p-4">
                   <div className="flex items-start justify-between gap-3">
@@ -47,7 +49,7 @@ export default async function MyBookings() {
                       {b.payment === "deposit" ? "Seña pagada" : "Paga en local"}
                     </Badge>
                   </div>
-                  {b.canModify ? (
+                  {b.canModify && !service.staffOnly ? (
                     <div className="mt-4 grid grid-cols-2 gap-2">
                       <ButtonLink
                         variant="secondary"
@@ -77,7 +79,9 @@ export default async function MyBookings() {
                     </div>
                   ) : (
                     <p className="mt-3 text-sm text-muted">
-                      Faltan menos de {BUSINESS.freeCancellationHours} h.{" "}
+                      {service.staffOnly
+                        ? "Este turno lo agendó el local."
+                        : `Faltan menos de ${BUSINESS.freeCancellationHours} h.`}{" "}
                       <a href={whatsapp} className="font-semibold text-ink underline">
                         Escribinos por WhatsApp
                       </a>{" "}
@@ -98,8 +102,8 @@ export default async function MyBookings() {
               className="mx-4 divide-y divide-line rounded-2xl border border-line bg-surface md:max-w-2xl"
             >
               {past.map((b) => {
-                const service = SERVICE_BY_ID.get(b.serviceId)!;
-                const pro = PROFESSIONAL_BY_ID.get(b.professionalId)!;
+                const service = catalog.serviceById.get(b.serviceId)!;
+                const pro = catalog.professionalById.get(b.professionalId)!;
                 return (
                   <li key={b.id} className="flex items-center gap-3 px-4 py-3">
                     <div className="flex-1">
@@ -110,7 +114,7 @@ export default async function MyBookings() {
                         {formatRelativeDay(b.date, now.date)} · {b.status === "cancelled" ? "Cancelado" : "Atendido"}
                       </p>
                     </div>
-                    {b.status === "attended" && (
+                    {b.status === "attended" && !service.staffOnly && (
                       // "Repetir": lleva directo al paso de horario con el mismo servicio y profesional.
                       <ButtonLink
                         variant="secondary"

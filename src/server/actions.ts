@@ -6,31 +6,30 @@ import { z } from "zod";
 import { normalizeArMobile } from "@/domain/phone";
 import { isIsoDate } from "@/domain/time";
 import { ANY_PROFESSIONAL } from "@/domain/types";
-import { PROFESSIONAL_BY_ID, SERVICE_BY_ID } from "@/data/catalog";
 import * as bookings from "./bookings";
-import { requireClient, requireOwner } from "./session";
+import { getCatalog } from "./catalog";
+import { requireClient, requireStaff, staffScope } from "./session";
 
 /**
  * Server Actions = endpoints públicos (cualquiera puede hacerles POST).
  * Por eso cada una: 1) verifica la sesión y el rol, 2) valida la entrada con
- * Zod y 3) delega en la capa de aplicación. Nunca confiar en el formulario.
+ * Zod y 3) delega en la capa de aplicación, que vuelve a chequear permisos
+ * (un peluquero solo toca su agenda). Nunca confiar en el formulario.
  */
 
 export type FormState = { error: string | null };
 
 const isoDate = z.string().refine(isIsoDate, "Fecha inválida");
 const minute = z.coerce.number().int().min(0).max(1439);
-const professionalChoice = z
-  .string()
-  .refine((v) => v === ANY_PROFESSIONAL || PROFESSIONAL_BY_ID.has(v), "Profesional inválido");
-const bookingId = z.string().min(1).max(64);
+const id = z.string().min(1).max(80);
+const professionalChoice = id;
 
 const parse = <T extends z.ZodType>(schema: T, form: FormData) => schema.safeParse(Object.fromEntries(form.entries()));
 
 /* ───────────── Cliente ───────────── */
 
 const createSchema = z.object({
-  serviceId: z.string().refine((v) => SERVICE_BY_ID.has(v), "Servicio inválido"),
+  serviceId: id,
   professional: professionalChoice,
   date: isoDate,
   start: minute,
@@ -51,12 +50,7 @@ export async function confirmBooking(_prev: FormState, form: FormData): Promise<
   redirect(`/cliente/reservar/listo?turno=${result.value.id}`);
 }
 
-const rescheduleSchema = z.object({
-  bookingId,
-  professional: professionalChoice,
-  date: isoDate,
-  start: minute,
-});
+const rescheduleSchema = z.object({ bookingId: id, professional: professionalChoice, date: isoDate, start: minute });
 
 export async function confirmReschedule(_prev: FormState, form: FormData): Promise<FormState> {
   const client = await requireClient();
@@ -72,66 +66,63 @@ export async function confirmReschedule(_prev: FormState, form: FormData): Promi
 
 export async function cancelMyBooking(_prev: FormState, form: FormData): Promise<FormState> {
   const client = await requireClient();
-  const id = bookingId.safeParse(form.get("bookingId"));
-  if (!id.success) return { error: "Turno inválido." };
+  const bookingId = id.safeParse(form.get("bookingId"));
+  if (!bookingId.success) return { error: "Turno inválido." };
 
-  const result = await bookings.cancelByClient(client.id, id.data);
+  const result = await bookings.cancelByClient(client.id, bookingId.data);
   if (!result.ok) return { error: result.error };
 
   revalidatePath("/", "layout");
   return { error: null };
 }
 
-/* ───────────── Dueña ───────────── */
+/* ───────────── Equipo ───────────── */
 
-export async function ownerCancelBooking(_prev: FormState, form: FormData): Promise<FormState> {
-  await requireOwner();
-  const id = bookingId.safeParse(form.get("bookingId"));
-  if (!id.success) return { error: "Turno inválido." };
+export async function staffCancelBooking(_prev: FormState, form: FormData): Promise<FormState> {
+  const user = await requireStaff();
+  const bookingId = id.safeParse(form.get("bookingId"));
+  if (!bookingId.success) return { error: "Turno inválido." };
 
-  const result = await bookings.cancelByOwner(id.data);
+  const result = await bookings.cancelByStaff(user, bookingId.data);
   if (!result.ok) return { error: result.error };
 
   revalidatePath("/", "layout");
-  redirect("/duena");
+  redirect("/panel");
 }
 
-export async function ownerMarkAttended(form: FormData) {
-  await requireOwner();
-  const id = bookingId.parse(form.get("bookingId"));
-  await bookings.markAttended(id);
+export async function staffMarkAttended(form: FormData) {
+  const user = await requireStaff();
+  await bookings.markAttended(user, id.parse(form.get("bookingId")));
   revalidatePath("/", "layout");
 }
 
-export async function ownerMarkSeen(id: string) {
-  await requireOwner();
-  await bookings.markSeen(bookingId.parse(id));
-  revalidatePath("/duena");
+export async function staffMarkSeen(bookingId: string) {
+  const user = await requireStaff();
+  await bookings.markSeen(user, id.parse(bookingId));
+  revalidatePath("/panel");
 }
 
-const blockSchema = z.object({ date: isoDate, professionalId: z.string(), start: minute });
+const blockSchema = z.object({ date: isoDate, professionalId: id, start: minute });
 
-export async function ownerToggleBlock(form: FormData) {
-  await requireOwner();
+export async function staffToggleBlock(form: FormData) {
+  const user = await requireStaff();
   const input = parse(blockSchema, form);
-  if (!input.success || !PROFESSIONAL_BY_ID.has(input.data.professionalId)) return;
-  await bookings.toggleBlockedSlot(input.data);
+  if (!input.success) return;
+  await bookings.toggleBlockedSlot(user, input.data);
   revalidatePath("/", "layout");
 }
 
-export async function ownerMarkActivityRead() {
-  await requireOwner();
-  await bookings.markActivityRead();
-  revalidatePath("/duena", "layout");
+export async function staffMarkActivityRead() {
+  const user = await requireStaff();
+  await bookings.markActivityReadFor(user);
+  revalidatePath("/panel", "layout");
 }
 
 const ALL_PROFESSIONALS = "todos";
 
 const rangeSchema = z.object({
   date: isoDate,
-  professionalId: z
-    .string()
-    .refine((v) => v === ALL_PROFESSIONALS || PROFESSIONAL_BY_ID.has(v), "Profesional inválido"),
+  professionalId: id,
   from: minute,
   to: z.coerce.number().int().min(1).max(1440),
   mode: z.enum(["block", "unblock"]),
@@ -139,15 +130,18 @@ const rangeSchema = z.object({
 
 export type RangeState = { error: string | null; message?: string };
 
-/** Marcar no disponible / disponible un rango o el día completo (uno o todos los profesionales). */
-export async function ownerSetRange(_prev: RangeState, form: FormData): Promise<RangeState> {
-  await requireOwner();
+/** Marcar no disponible / disponible un rango o el día completo. */
+export async function staffSetRange(_prev: RangeState, form: FormData): Promise<RangeState> {
+  const user = await requireStaff();
   const input = parse(rangeSchema, form);
   if (!input.success) return { error: "Revisá el día y las horas." };
 
   const { date, professionalId, from, to, mode } = input.data;
-  const professionalIds = professionalId === ALL_PROFESSIONALS ? [...PROFESSIONAL_BY_ID.keys()] : [professionalId];
-  const result = await bookings.setRangeBlocked({ date, professionalIds, from, to, blocked: mode === "block" });
+  const scope = staffScope(user);
+  const team = (await getCatalog()).professionals.map((p) => p.id);
+  // "Todo el equipo" solo para el admin; un peluquero siempre actúa sobre sí mismo.
+  const professionalIds = scope ? [scope] : professionalId === ALL_PROFESSIONALS ? team : [professionalId];
+  const result = await bookings.setRangeBlocked(user, { date, professionalIds, from, to, blocked: mode === "block" });
   if (!result.ok) return { error: result.error };
 
   revalidatePath("/", "layout");
@@ -164,10 +158,27 @@ export async function ownerSetRange(_prev: RangeState, form: FormData): Promise<
   return { error: null, message: `Listo: ${changed} horarios marcados como no disponibles.${busyNote}` };
 }
 
+/** Horarios libres de un día para el turno rápido (lectura liviana, se pide al tocar el calendario). */
+export async function staffQuickSlots(input: {
+  serviceId: string;
+  durationMin: number;
+  professional: string;
+  date: string;
+}) {
+  const user = await requireStaff();
+  const parsed = z
+    .object({ serviceId: id, durationMin: z.number().int().min(15).max(600), professional: id, date: isoDate })
+    .safeParse(input);
+  if (!parsed.success) return [];
+  return bookings.getQuickSlots(user, parsed.data);
+}
+
 const walkInSchema = z.object({
   clientName: z.string().trim().min(2, "Escribí el nombre de la clienta.").max(60),
   phone: z.string().trim().max(30).optional(),
-  serviceId: z.string().refine((v) => SERVICE_BY_ID.has(v), "Elegí un servicio."),
+  serviceId: id,
+  durationMin: z.coerce.number().int().optional(),
+  note: z.string().trim().max(80, "El motivo es demasiado largo.").optional(),
   professional: professionalChoice,
   date: isoDate,
   start: minute,
@@ -175,8 +186,8 @@ const walkInSchema = z.object({
 
 export type WalkInState = { error: string | null; values?: Record<string, string> };
 
-export async function ownerQuickBooking(_prev: WalkInState, form: FormData): Promise<WalkInState> {
-  await requireOwner();
+export async function staffQuickBooking(_prev: WalkInState, form: FormData): Promise<WalkInState> {
+  const user = await requireStaff();
   const values = Object.fromEntries([...form.entries()].map(([k, v]) => [k, String(v)]));
   if (!form.get("start")) return { error: "Elegí un horario disponible.", values };
   const input = parse(walkInSchema, form);
@@ -185,10 +196,13 @@ export async function ownerQuickBooking(_prev: WalkInState, form: FormData): Pro
   const rawPhone = input.data.phone ?? "";
   const phone = rawPhone ? normalizeArMobile(rawPhone) : null;
   if (rawPhone && !phone) return { error: "Revisá el celular: código de área + número (ej. 11 5523-8841).", values };
+  if (input.data.professional === ANY_PROFESSIONAL && staffScope(user)) {
+    return { error: "Elegí con quién.", values };
+  }
 
-  const result = await bookings.createWalkInBooking({ ...input.data, phone });
+  const result = await bookings.createWalkInBooking(user, { ...input.data, phone });
   if (!result.ok) return { error: result.error, values };
 
   revalidatePath("/", "layout");
-  redirect(`/duena/turnos/${result.value.id}?nuevo=1`);
+  redirect(`/panel/turnos/${result.value.id}?nuevo=1`);
 }

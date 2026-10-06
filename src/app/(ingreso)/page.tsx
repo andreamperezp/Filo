@@ -10,7 +10,7 @@ export const metadata = { title: "Ingresar" };
 /** Ingreso del cliente: solo el celular. Sin registro previo ni contraseña. */
 export default async function SignIn() {
   const session = await getSession();
-  if (session) redirect(session.role === "client" ? "/cliente" : "/duena");
+  if (session) redirect(session.role === "client" ? "/cliente" : "/panel");
 
   return (
     <AuthShell

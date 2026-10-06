@@ -1,12 +1,17 @@
 import "server-only";
 
 import { nowIn } from "@/domain/time";
-import type { ActivityEvent, BlockedSlot, Booking, Client } from "@/domain/types";
+import type { ActivityEvent, BlockedSlot, Booking, Client, Professional, StaffUser } from "@/domain/types";
+import { hashPassword } from "@/lib/password";
+import { env } from "@/server/env";
 import { BUSINESS } from "./catalog";
 import type { Repository } from "./repository";
 import { buildSeed } from "./seed";
 
 interface State {
+  version: number;
+  professionals: Professional[];
+  staff: StaffUser[];
   clients: Client[];
   bookings: Booking[];
   blocked: BlockedSlot[];
@@ -25,6 +30,36 @@ export class MemoryRepository implements Repository {
   private queue: Promise<unknown> = Promise.resolve();
 
   constructor(private state: State) {}
+
+  async listProfessionals() {
+    return this.state.professionals;
+  }
+  async insertProfessional(professional: Professional) {
+    this.state.professionals.push(professional);
+  }
+  async updateProfessional(id: string, patch: Partial<Omit<Professional, "id">>) {
+    this.state.professionals = this.state.professionals.map((p) => (p.id === id ? { ...p, ...patch } : p));
+  }
+
+  async listStaff() {
+    return this.state.staff;
+  }
+  async getStaff(id: string) {
+    return this.state.staff.find((u) => u.id === id) ?? null;
+  }
+  async findStaffByEmail(email: string) {
+    const key = email.trim().toLowerCase();
+    return this.state.staff.find((u) => u.email === key) ?? null;
+  }
+  async insertStaff(user: StaffUser) {
+    this.state.staff.push({ ...user, email: user.email.trim().toLowerCase() });
+  }
+  async updateStaff(id: string, patch: Partial<Omit<StaffUser, "id">>) {
+    const i = this.state.staff.findIndex((u) => u.id === id);
+    if (i < 0) return null;
+    this.state.staff[i] = { ...this.state.staff[i], ...patch };
+    return this.state.staff[i];
+  }
 
   async getClient(id: string) {
     return this.state.clients.find((c) => c.id === id) ?? null;
@@ -92,8 +127,10 @@ export class MemoryRepository implements Repository {
   async insertActivity(event: ActivityEvent) {
     this.state.activity.push(event);
   }
-  async markAllActivityRead() {
-    this.state.activity = this.state.activity.map((a) => ({ ...a, read: true }));
+  async markActivityRead(staffId: string, eventIds: string[]) {
+    this.state.activity = this.state.activity.map((a) =>
+      eventIds.includes(a.id) && !a.readBy.includes(staffId) ? { ...a, readBy: [...a.readBy, staffId] } : a,
+    );
   }
 
   transaction<T>(fn: () => Promise<T>): Promise<T> {
@@ -101,6 +138,54 @@ export class MemoryRepository implements Repository {
     this.queue = run.catch(() => undefined);
     return run;
   }
+}
+
+/** Subir este número cuando cambie la forma de `State`: el dev server rearma los datos. */
+const STATE_VERSION = 2;
+
+export const ADMIN_STAFF_ID = "staff-romina";
+
+/**
+ * Cuentas iniciales del equipo. La del admin sale de las variables de entorno
+ * (`ADMIN_EMAIL` / `ADMIN_PASSWORD`); en desarrollo se agregan Lucas y Sofía
+ * con `DEV_STAFF_PASSWORD` para probar el acceso de cada peluquero.
+ */
+function seedStaff(): StaffUser[] {
+  const { ADMIN_EMAIL, ADMIN_PASSWORD, DEV_STAFF_PASSWORD } = env();
+  const createdAt = new Date().toISOString();
+  const staff: StaffUser[] = [
+    {
+      id: ADMIN_STAFF_ID,
+      name: "Romina",
+      email: ADMIN_EMAIL.toLowerCase(),
+      role: "admin",
+      professionalId: "romi",
+      passwordHash: hashPassword(ADMIN_PASSWORD),
+      mustChangePassword: false,
+      active: true,
+      createdAt,
+    },
+  ];
+  if (DEV_STAFF_PASSWORD) {
+    const hash = hashPassword(DEV_STAFF_PASSWORD);
+    for (const [id, name, email, professionalId] of [
+      ["staff-lucas", "Lucas", "lucas@filo.test", "lucas"],
+      ["staff-sofia", "Sofía", "sofia@filo.test", "sofi"],
+    ]) {
+      staff.push({
+        id,
+        name,
+        email,
+        role: "professional",
+        professionalId,
+        passwordHash: hash,
+        mustChangePassword: false,
+        active: true,
+        createdAt,
+      });
+    }
+  }
+  return staff;
 }
 
 /**
@@ -111,9 +196,15 @@ export class MemoryRepository implements Repository {
 const globalForRepo = globalThis as unknown as { filoState?: State; filoRepo?: unknown };
 
 export function getMemoryRepository(): MemoryRepository {
-  if (!globalForRepo.filoState) {
+  if (globalForRepo.filoState?.version !== STATE_VERSION) {
     const now = nowIn(BUSINESS.timeZone);
-    globalForRepo.filoState = { ...buildSeed(now.date, now.minute), blocked: [] };
+    globalForRepo.filoState = {
+      version: STATE_VERSION,
+      ...buildSeed(now.date, now.minute, ADMIN_STAFF_ID),
+      staff: seedStaff(),
+      blocked: [],
+    };
+    globalForRepo.filoRepo = undefined;
   }
   if (globalForRepo.filoRepo instanceof MemoryRepository) return globalForRepo.filoRepo;
   const repo = new MemoryRepository(globalForRepo.filoState);

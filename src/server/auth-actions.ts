@@ -2,11 +2,10 @@
 
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { OWNER } from "@/data/catalog";
 import { getMemoryRepository } from "@/data/memory-repository";
 import { normalizeArMobile } from "@/domain/phone";
 import { issueCode, verifyCode } from "./one-time-code";
-import { checkOwnerCredentials } from "./owner-auth";
+import { checkStaffCredentials } from "./staff-auth";
 import { clearPendingLogin, endSession, getPendingLogin, setPendingLogin, startSession } from "./session";
 
 /**
@@ -94,14 +93,14 @@ export async function changePhone() {
   redirect("/");
 }
 
-/* ───────────── Dueña: email + contraseña ───────────── */
+/* ───────────── Equipo (superadmin y peluqueros): email + contraseña ───────────── */
 
-export async function ownerSignIn(_prev: AuthState, form: FormData): Promise<AuthState> {
+export async function staffSignIn(_prev: AuthState, form: FormData): Promise<AuthState> {
   const email = field(form, "email");
   const password = String(form.get("password") ?? "");
   if (!email || !password) return { error: "Completá email y contraseña.", values: { email } };
 
-  const result = checkOwnerCredentials(email, password);
+  const result = await checkStaffCredentials(email, password);
   if (!result.ok) {
     return {
       error:
@@ -111,8 +110,8 @@ export async function ownerSignIn(_prev: AuthState, form: FormData): Promise<Aut
       values: { email },
     };
   }
-  await startSession("owner", OWNER.id);
-  redirect("/duena");
+  await startSession("staff", result.user.id);
+  redirect(result.user.mustChangePassword ? "/equipo/clave" : "/panel");
 }
 
 /* ───────────── Ambos ───────────── */

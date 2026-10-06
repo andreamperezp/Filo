@@ -52,7 +52,6 @@ function overlaps(aStart: number, aDur: number, bStart: number, bDur: number): b
  */
 export function isBusy(
   agenda: AgendaSnapshot,
-  services: ReadonlyMap<string, Service>,
   business: Business,
   professionalId: ProfessionalId,
   date: IsoDate,
@@ -63,8 +62,7 @@ export function isBusy(
   const clash = agenda.bookings.some((b) => {
     if (b.id === ignoreBookingId || b.status === "cancelled") return false;
     if (b.date !== date || b.professionalId !== professionalId) return false;
-    const dur = services.get(b.serviceId)?.durationMin ?? business.slotMin;
-    return overlaps(start, durationMin, b.start, dur);
+    return overlaps(start, durationMin, b.start, b.durationMin);
   });
   if (clash) return true;
   return agenda.blocked.some(
@@ -75,7 +73,6 @@ export function isBusy(
 
 export interface AvailabilityQuery {
   business: Business;
-  services: ReadonlyMap<string, Service>;
   agenda: AgendaSnapshot;
   now: Now;
   service: Service;
@@ -101,7 +98,7 @@ export function slotsForDay(q: AvailabilityQuery): Slot[] {
       start,
       assignTo:
         candidates.find(
-          (p) => !isBusy(q.agenda, q.services, q.business, p, q.date, start, q.service.durationMin, q.ignoreBookingId),
+          (p) => !isBusy(q.agenda, q.business, p, q.date, start, q.service.durationMin, q.ignoreBookingId),
         ) ?? null,
     }));
 }
@@ -140,7 +137,6 @@ export function gridInRange(business: Business, date: IsoDate, from: MinuteOfDay
  */
 export function planBlockRange(
   agenda: AgendaSnapshot,
-  services: ReadonlyMap<string, Service>,
   business: Business,
   input: { date: IsoDate; professionalIds: readonly ProfessionalId[]; from: MinuteOfDay; to: MinuteOfDay },
 ): { slots: BlockedSlot[]; busy: BlockedSlot[] } {
@@ -150,7 +146,7 @@ export function planBlockRange(
   for (const professionalId of input.professionalIds) {
     for (const start of gridInRange(business, input.date, input.from, input.to)) {
       const slot = { date: input.date, professionalId, start };
-      const taken = isBusy(withoutBlocks, services, business, professionalId, input.date, start, business.slotMin);
+      const taken = isBusy(withoutBlocks, business, professionalId, input.date, start, business.slotMin);
       (taken ? busy : slots).push(slot);
     }
   }

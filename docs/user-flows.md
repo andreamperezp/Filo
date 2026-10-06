@@ -8,7 +8,7 @@ coinciden con las rutas de `src/app`.
 ```mermaid
 flowchart LR
   Entrada["/ · Ingresar con celular"]
-  Equipo["/equipo · Ingreso de la dueña"]
+  Equipo["/equipo · Ingreso del equipo"]
   subgraph Cliente["App de clientes"]
     CI["/cliente · Inicio"]
     R1["/reservar · Servicio"]
@@ -18,13 +18,19 @@ flowchart LR
     R5["/reservar/listo"]
     MT["/cliente/turnos · Mis turnos"]
   end
-  subgraph Duena["Panel de la dueña"]
-    AG["/duena · Agenda"]
-    DT["/duena/turnos/[id] · Detalle"]
-    AC["/duena/actividad"]
+  subgraph Panel["Panel del equipo"]
+    AG["/panel · Agenda"]
+    NU["/panel/nuevo · Turno rápido"]
+    DT["/panel/turnos/[id] · Detalle"]
+    AC["/panel/actividad"]
+    EQ["/panel/equipo · Equipo (solo superadmin)"]
   end
+  CL["/equipo/clave · Elegir contraseña"]
   Entrada --> CI
   Equipo --> AG
+  Equipo -- "contraseña temporal" --> CL --> AG
+  AG --> NU --> DT
+  AG --> EQ
   CI --> R1 --> R2 --> R3 --> R4 --> R5
   CI -- "atajo: tocar un servicio" --> R2
   R5 --> MT & CI
@@ -62,7 +68,7 @@ flowchart TD
   F -. Usar otro número .-> C
 ```
 
-### Dueña: email + contraseña
+### Equipo: email + contraseña (cada persona con su cuenta)
 
 ```mermaid
 flowchart TD
@@ -70,7 +76,9 @@ flowchart TD
   B --> C{¿Correctos?}
   C -- No --> D[Email o contraseña incorrectos<br/>mismo mensaje para ambos] --> B
   C -- 5 fallos --> E[Bloqueado 15 min]
-  C -- Sí --> F([Agenda de hoy · sesión de 12 h])
+  C -- Sí --> G{¿Contraseña temporal?}
+  G -- Sí --> H["/equipo/clave · elige su contraseña<br/>10+ caracteres, sin su nombre ni email"] --> F
+  G -- No --> F([Agenda de hoy · sesión de 12 h<br/>superadmin: todo el equipo · peluquero: la suya])
 ```
 
 ---
@@ -119,7 +127,7 @@ flowchart TD
   B -- No --> W[Link a WhatsApp del local]
   B -- Sí --> C[Cancelar] --> D[Hoja de confirmación<br/>'¿Cancelar el turno?' + consecuencias<br/>'El horario se libera para otra persona'<br/>'Te devolvemos la seña' si pagó]
   D -- No, mantener --> A
-  D -- Sí, cancelar --> E[Turno pasa a 'Anteriores · Cancelado'<br/>la dueña recibe el evento en Actividad]
+  D -- Sí, cancelar --> E[Turno pasa a 'Anteriores · Cancelado'<br/>el equipo recibe el evento en Actividad]
 ```
 
 ### 4. Repetir un servicio
@@ -129,13 +137,15 @@ con el mismo servicio y profesional: reservar lo de siempre lleva 2 toques.
 
 ---
 
-## Dueña
+## Equipo (superadmin y peluqueros)
+
+> Lo que sigue vale para ambos roles; un **peluquero** lo hace solo sobre su propia agenda.
 
 ### 1. Revisar el día
 
 ```mermaid
 flowchart TD
-  A([Abre /duena entre cliente y cliente]) --> B[Agenda de hoy<br/>'Buen día, Romina' + fecha larga]
+  A([Abre /panel entre cliente y cliente]) --> B[Agenda de hoy<br/>'Buen día, Romina' + fecha larga]
   B --> C{¿Qué necesita?}
   C -- Otro día --> D[Tira de 14 días con cantidad de turnos] --> B
   C -- Un profesional --> E[Chip: Romina / Lucas / Sofía<br/>vista de grilla con huecos libres]
@@ -172,6 +182,8 @@ También se puede bloquear o liberar **un horario suelto** desde la vista por pr
 
 ### 4. Turno rápido (clienta en el local o por teléfono)
 
+Incluye un **calendario** mensual (45 días) con la cantidad de horarios libres por día y el servicio **"Otro"** con duración a elegir y motivo opcional.
+
 ```mermaid
 flowchart TD
   A{¿Desde dónde?} -- Botón 'Turno rápido' --> B[Formulario con el primer horario libre ya elegido]
@@ -185,13 +197,31 @@ flowchart TD
   H -- OK --> J([Detalle del turno · 'Turno agendado'<br/>si dejó celular: aparece en su cuenta])
 ```
 
-### 5. Enterarse de novedades
+### 5. Superadmin: sumar a un peluquero
+
+```mermaid
+flowchart TD
+  A["/panel/equipo · Sumar a alguien"] --> B[Nombre · email · rol<br/>especialidad · servicios que hace]
+  B --> C{¿Email ya usado?}
+  C -- Sí --> D[Error claro, datos conservados] --> B
+  C -- No --> E[Se crean el profesional y su cuenta<br/>contraseña temporal visible UNA vez + Copiar]
+  E --> F[Se la pasa en persona o por mensaje privado]
+  F --> G[El peluquero entra en /equipo con la temporal]
+  G --> H["/equipo/clave · elige su contraseña"]
+  H --> I([Ve solo su agenda · ya aparece en la reserva de clientes])
+```
+
+Bajas: **Desactivar** (con confirmación) corta el acceso al instante y deja de
+ofrecerlo para turnos nuevos; sus turnos próximos quedan en la agenda y se avisa
+cuántos son. **Blanquear contraseña** genera otra temporal.
+
+### 6. Enterarse de novedades
 
 ```mermaid
 sequenceDiagram
   actor C as Cliente
   participant S as Servidor
-  actor D as Dueña (agenda abierta)
+  actor D as Equipo (agenda abierta)
   C->>S: Confirma turno (Server Action)
   S->>S: Revalida disponibilidad + guarda + registra actividad
   loop cada 15 s y al volver a la pestaña

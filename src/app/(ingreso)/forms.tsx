@@ -4,11 +4,12 @@ import { useActionState, useEffect, useRef, useState, useTransition } from "reac
 import {
   completeProfile,
   confirmCode,
-  ownerSignIn,
+  staffSignIn,
   requestCode,
   resendCode,
   type AuthState,
 } from "@/server/auth-actions";
+import { changeMyPassword } from "@/server/team-actions";
 import { ErrorText, Field, PasswordInput, PrimaryButton, inputClass } from "./fields";
 import { cx } from "@/components/ui";
 
@@ -146,10 +147,10 @@ export function ProfileForm() {
   );
 }
 
-/* ───────────── Dueña: email + contraseña ───────────── */
+/* ───────────── Equipo: email + contraseña ───────────── */
 
-export function OwnerForm() {
-  const [state, action] = useActionState(ownerSignIn, initial);
+export function StaffForm() {
+  const [state, action] = useActionState(staffSignIn, initial);
   return (
     <form action={action} className="flex flex-col gap-5" noValidate>
       {state.error && <ErrorText>{state.error}</ErrorText>}
@@ -174,6 +175,30 @@ export function OwnerForm() {
         {(a11y) => <PasswordInput {...a11y} name="password" autoComplete="current-password" required />}
       </Field>
       <PrimaryButton pendingLabel="Ingresando…">Ingresar</PrimaryButton>
+    </form>
+  );
+}
+
+/* ───────────── Equipo: elegir contraseña propia ───────────── */
+
+export function ChangePasswordForm() {
+  const [state, action] = useActionState(changeMyPassword, { error: null });
+  return (
+    <form action={action} className="flex flex-col gap-5" noValidate>
+      {state.error && <ErrorText>{state.error}</ErrorText>}
+      <Field label="Contraseña actual (la temporal)">
+        {(a11y) => <PasswordInput {...a11y} name="current" autoComplete="current-password" required autoFocus />}
+      </Field>
+      <Field
+        label="Contraseña nueva"
+        hint="Al menos 10 caracteres. Mejor una frase fácil de recordar que una palabra rara."
+      >
+        {(a11y) => <PasswordInput {...a11y} name="next" autoComplete="new-password" required minLength={10} />}
+      </Field>
+      <Field label="Repetila">
+        {(a11y) => <PasswordInput {...a11y} name="confirm" autoComplete="new-password" required minLength={10} />}
+      </Field>
+      <PrimaryButton pendingLabel="Guardando…">Guardar y entrar</PrimaryButton>
     </form>
   );
 }

@@ -1,8 +1,8 @@
 import { IconPlus, IconRefresh, IconX } from "@tabler/icons-react";
 import type { ActivityKind } from "@/domain/types";
-import { ownerMarkActivityRead } from "@/server/actions";
-import { getActivity } from "@/server/bookings";
-import { requireOwner } from "@/server/session";
+import { staffMarkActivityRead } from "@/server/actions";
+import { getActivityFor } from "@/server/bookings";
+import { requireStaff } from "@/server/session";
 import { SubmitButton } from "@/components/forms";
 import { H1, Screen, cx } from "@/components/ui";
 
@@ -25,17 +25,25 @@ function ago(iso: string): string {
 }
 
 export default async function Activity() {
-  await requireOwner();
-  const events = await getActivity();
+  const user = await requireStaff();
+  const events = await getActivityFor(user);
   const unread = events.some((e) => !e.read);
 
   return (
     <Screen width="narrow">
       <main className="flex-1 pb-6">
         <div className="flex items-end justify-between pt-6 pr-4">
-          <H1 sub="Reservas, cambios y cancelaciones">Actividad</H1>
+          <H1
+            sub={
+              user.role === "admin"
+                ? "Reservas, cambios y cancelaciones de todo el equipo"
+                : "Reservas, cambios y cancelaciones de tu agenda"
+            }
+          >
+            Actividad
+          </H1>
           {unread && (
-            <form action={ownerMarkActivityRead} className="pb-4">
+            <form action={staffMarkActivityRead} className="pb-4">
               <SubmitButton variant="ghost" className="min-h-10 px-3 text-sm" pendingLabel="…">
                 Marcar todo leído
               </SubmitButton>

@@ -89,9 +89,16 @@ horaria del servidor (Vercel corre en UTC).
 
 ### ADR-008 · Ingreso sin contraseña para clientes
 
-**Decisión:** celular + código de un solo uso para clientes; email + contraseña para la dueña.
-**Por qué:** el cliente usa la app pocas veces al mes y su identidad para el local ya es el teléfono (WhatsApp); una contraseña sería fricción y soporte. La dueña accede a datos de todos los clientes, así que usa un factor clásico y sesión corta.
-**Fase 2:** Supabase Auth con OTP por SMS/WhatsApp (cliente) y email + contraseña con recuperación (dueña); solo cambian `server/session.ts` y `server/auth-actions.ts`.
+**Decisión:** celular + código de un solo uso para clientes; email + contraseña (una cuenta por persona) para el equipo.
+**Por qué:** el cliente usa la app pocas veces al mes y su identidad para el local ya es el teléfono (WhatsApp); una contraseña sería fricción y soporte. El equipo accede a datos de clientas, así que usa un factor clásico y sesión corta.
+**Fase 2:** Supabase Auth con OTP por SMS/WhatsApp (cliente) y email + contraseña con recuperación (equipo); solo cambian `server/session.ts` y `server/auth-actions.ts`.
+
+### ADR-009 · Roles: superadmin y peluquero, permisos en el servidor
+
+**Contexto:** varias personas usan el panel; cada una tiene que ver lo suyo y hay que saber quién hizo qué.
+**Decisión:** una cuenta por persona (`StaffUser`) con rol `admin` o `professional`, vinculada a su `Professional`. Los permisos se aplican en la capa de aplicación con `staffScope(user)` (todos o solo su agenda) y se repiten con RLS en Postgres (`20261006000000_staff_roles.sql`).
+**Por qué:** la UI oculta lo que no corresponde, pero la seguridad no puede depender de la UI: una Server Action es un endpoint público.
+**Equipo editable:** los profesionales viven en el repositorio (no en constantes); cada servicio calcula sus `professionalIds` a partir del equipo activo, así un alta aparece al instante en la reserva de clientes.
 
 ### ADR-007 · Actualización en vivo por polling (fase 1) → Realtime (fase 2)
 
@@ -142,19 +149,21 @@ El SQL completo, con restricciones, índices y políticas RLS, está en
 
 ## Seguridad
 
-| Riesgo                                    | Mitigación                                                                                                                                                      |
-| ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Sesiones falsificadas                     | Cookie `httpOnly`, `SameSite=Lax`, `Secure` en producción y firmada con HMAC-SHA256 (`server/signed-cookie.ts`), con vencimiento propio.                        |
-| Fuerza bruta en el código de ingreso      | 6 dígitos aleatorios (`crypto.randomInt`), solo se guarda el hash, vence en 5 min, 5 intentos y reenvío cada 30 s.                                              |
-| Fuerza bruta en la contraseña de la dueña | Comparación en tiempo constante, mensaje de error genérico y bloqueo de 15 min tras 5 fallos.                                                                   |
-| Secretos en producción                    | `SESSION_SECRET`, `OWNER_EMAIL` y `OWNER_PASSWORD` validados con Zod; si faltan, el login falla (falla cerrada). `.env.development` solo tiene datos de prueba. |
-| Llamar Server Actions directamente        | Sesión + rol + Zod en cada acción (`server/actions.ts`).                                                                                                        |
-| Cliente modificando turnos ajenos         | Chequeo de `clientId` en el caso de uso; en Supabase, RLS `client_id = auth.uid()`.                                                                             |
-| Dueña = rol privilegiado                  | Rol en `profiles.role`; políticas RLS de escritura solo para `owner`.                                                                                           |
-| Datos personales (teléfonos)              | Solo visibles para la dueña; nunca en URLs ni logs.                                                                                                             |
-| Código de servidor filtrado al cliente    | `import "server-only"` en repositorio, sesión y casos de uso.                                                                                                   |
-| Pagos falsificados                        | La seña se confirma únicamente por webhook firmado de Mercado Pago, nunca desde el navegador.                                                                   |
-| Secretos                                  | Variables de entorno (`.env.local`, no versionado); ver `.env.example`.                                                                                         |
+| Riesgo                                 | Mitigación                                                                                                                                                                                                |
+| -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Sesiones falsificadas                  | Cookie `httpOnly`, `SameSite=Lax`, `Secure` en producción y firmada con HMAC-SHA256 (`server/signed-cookie.ts`), con vencimiento propio.                                                                  |
+| Fuerza bruta en el código de ingreso   | 6 dígitos aleatorios (`crypto.randomInt`), solo se guarda el hash, vence en 5 min, 5 intentos y reenvío cada 30 s.                                                                                        |
+| Fuerza bruta en contraseñas del equipo | Comparación en tiempo constante, mensaje de error genérico y bloqueo de 15 min tras 5 fallos.                                                                                                             |
+| Secretos en producción                 | `SESSION_SECRET`, `ADMIN_EMAIL` y `ADMIN_PASSWORD` validados con Zod; si faltan, el login falla (falla cerrada). `.env.development` solo tiene datos de prueba.                                           |
+| Llamar Server Actions directamente     | Sesión + rol + Zod en cada acción (`server/actions.ts`).                                                                                                                                                  |
+| Cliente modificando turnos ajenos      | Chequeo de `clientId` en el caso de uso; en Supabase, RLS `client_id = auth.uid()`.                                                                                                                       |
+| Escalada de privilegios entre roles    | El rol se relee de la base en cada pedido; `staffScope()` limita al peluquero a su agenda en **cada caso de uso** (no solo en la UI). Tests en `server/permissions.test.ts`. RLS equivalente en Supabase. |
+| Contraseñas filtradas                  | scrypt + sal por usuario (`lib/password.ts`); temporales con cambio obligatorio; el hash nunca sale hacia la UI (`publicUser`).                                                                           |
+| Cuentas de ex-empleados                | Desactivar corta la sesión en el siguiente pedido (la sesión no guarda permisos).                                                                                                                         |
+| Datos personales (teléfonos)           | Visibles para el equipo solo en turnos que puede gestionar; nunca en URLs ni logs.                                                                                                                        |
+| Código de servidor filtrado al cliente | `import "server-only"` en repositorio, sesión y casos de uso.                                                                                                                                             |
+| Pagos falsificados                     | La seña se confirma únicamente por webhook firmado de Mercado Pago, nunca desde el navegador.                                                                                                             |
+| Secretos                               | Variables de entorno (`.env.local`, no versionado); ver `.env.example`.                                                                                                                                   |
 
 ---
 
@@ -172,6 +181,6 @@ El SQL completo, con restricciones, índices y políticas RLS, está en
 1. Crear el proyecto y aplicar la migración (`supabase db push`).
 2. Implementar `src/data/supabase-repository.ts` que cumpla `Repository` (usar `@supabase/ssr`).
 3. En `src/server/bookings.ts`, cambiar `getMemoryRepository` por el nuevo repositorio.
-4. Reemplazar `getSession()` en `src/server/session.ts` por la sesión de Supabase Auth (cliente: OTP por teléfono; dueña: email + contraseña) leyendo `profiles.role`.
+4. Reemplazar `getSession()` en `src/server/session.ts` por la sesión de Supabase Auth (cliente: OTP por teléfono; equipo: email + contraseña) leyendo `profiles.role` y `profiles.professional_id`.
 5. Reemplazar el polling de `live-updates.tsx` por Supabase Realtime.
 6. Cargar las variables de `.env.example` en Vercel.

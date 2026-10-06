@@ -8,6 +8,7 @@ import {
   IconCalendarCheck,
   IconCalendarEvent,
   IconHome,
+  IconUsersGroup,
   IconLogout,
   IconPlus,
 } from "@tabler/icons-react";
@@ -21,6 +22,7 @@ const ICONS = {
   bookings: IconCalendarCheck,
   agenda: IconCalendarEvent,
   activity: IconActivity,
+  team: IconUsersGroup,
 };
 
 export interface Tab {

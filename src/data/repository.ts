@@ -1,4 +1,13 @@
-import type { ActivityEvent, BlockedSlot, Booking, BookingId, Client, IsoDate } from "@/domain/types";
+import type {
+  ActivityEvent,
+  BlockedSlot,
+  Booking,
+  BookingId,
+  Client,
+  IsoDate,
+  Professional,
+  StaffUser,
+} from "@/domain/types";
 
 /**
  * Puerto de persistencia. La app solo conoce esta interfaz; hoy la implementa
@@ -6,6 +15,16 @@ import type { ActivityEvent, BlockedSlot, Booking, BookingId, Client, IsoDate } 
  * pantallas ni reglas de negocio.
  */
 export interface Repository {
+  listProfessionals(): Promise<Professional[]>;
+  insertProfessional(professional: Professional): Promise<void>;
+  updateProfessional(id: string, patch: Partial<Omit<Professional, "id">>): Promise<void>;
+
+  listStaff(): Promise<StaffUser[]>;
+  getStaff(id: string): Promise<StaffUser | null>;
+  findStaffByEmail(email: string): Promise<StaffUser | null>;
+  insertStaff(user: StaffUser): Promise<void>;
+  updateStaff(id: string, patch: Partial<Omit<StaffUser, "id">>): Promise<StaffUser | null>;
+
   getClient(id: string): Promise<Client | null>;
   findClientByPhone(phone: string): Promise<Client | null>;
   insertClient(client: Client): Promise<void>;
@@ -26,7 +45,8 @@ export interface Repository {
 
   listActivity(limit?: number): Promise<ActivityEvent[]>;
   insertActivity(event: ActivityEvent): Promise<void>;
-  markAllActivityRead(): Promise<void>;
+  /** Marca como leídos esos eventos para una persona del equipo. */
+  markActivityRead(staffId: string, eventIds: string[]): Promise<void>;
 
   /**
    * Ejecuta `fn` en exclusión mutua. En memoria es un lock; en Postgres lo

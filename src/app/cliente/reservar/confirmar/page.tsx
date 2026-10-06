@@ -1,24 +1,26 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { BUSINESS, PROFESSIONAL_BY_ID } from "@/data/catalog";
+import { BUSINESS } from "@/data/catalog";
 import { formatMoney } from "@/domain/money";
 import { amountDueNow, depositAmount } from "@/domain/policies";
 import { formatLongDay, formatTime } from "@/domain/time";
 import { ANY_PROFESSIONAL, type PaymentMethod } from "@/domain/types";
 import { confirmBooking, confirmReschedule } from "@/server/actions";
-import { getAvailability, getClientBookings, serviceOrNull } from "@/server/bookings";
+import { getAvailability, getClientBookings, getPublicService } from "@/server/bookings";
 import { requireClient } from "@/server/session";
 import { ActionForm, SubmitButton } from "@/components/forms";
 import { BottomAction, H1, KeyValueList, Screen, TopBar, WithSidebar, cx } from "@/components/ui";
 import { flowHref, readFlowParams } from "../params";
+import { getCatalog } from "@/server/catalog";
 
 export const metadata = { title: "Revisá tu turno" };
 
 /** Paso 4 de 4: resumen, medio de pago y confirmación. */
 export default async function Confirm({ searchParams }: PageProps<"/cliente/reservar/confirmar">) {
+  const catalog = await getCatalog();
   const client = await requireClient();
   const params = await readFlowParams(searchParams);
-  const service = serviceOrNull(params.servicio);
+  const service = await getPublicService(params.servicio);
   if (!service) redirect("/cliente/reservar");
   const professional = params.profesional ?? ANY_PROFESSIONAL;
   const backToTime = flowHref("/cliente/reservar/horario", { ...params, pago: undefined });
@@ -41,7 +43,7 @@ export default async function Confirm({ searchParams }: PageProps<"/cliente/rese
 
   const payment: PaymentMethod = params.pago ?? "in_store";
   const deposit = depositAmount(BUSINESS, service);
-  const assigned = PROFESSIONAL_BY_ID.get(slot.assignTo)!;
+  const assigned = catalog.professionalById.get(slot.assignTo)!;
   const payOptions = [
     { id: "in_store", title: "Pago en el local", sub: "Efectivo, débito o transferencia" },
     {

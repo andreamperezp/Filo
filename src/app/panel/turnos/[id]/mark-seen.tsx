@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { ownerMarkSeen } from "@/server/actions";
+import { staffMarkSeen } from "@/server/actions";
 
 /**
  * Marca el turno como visto al abrir el detalle. Va en un efecto (POST) y no
@@ -9,7 +9,7 @@ import { ownerMarkSeen } from "@/server/actions";
  */
 export function MarkSeen({ id }: { id: string }) {
   useEffect(() => {
-    void ownerMarkSeen(id);
+    void staffMarkSeen(id);
   }, [id]);
   return null;
 }

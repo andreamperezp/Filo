@@ -2,7 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { IconCalendarOff } from "@tabler/icons-react";
-import { ownerSetRange, type RangeState } from "@/server/actions";
+import { staffSetRange, type RangeState } from "@/server/actions";
 import { SubmitButton } from "@/components/forms";
 import { cx } from "@/components/ui";
 
@@ -21,6 +21,7 @@ export function AvailabilityPanel({
   dayLabel,
   professionals,
   defaultProfessional,
+  canChooseTeam,
   starts,
   ends,
   noon,
@@ -29,11 +30,13 @@ export function AvailabilityPanel({
   dayLabel: string;
   professionals: Array<{ id: string; name: string }>;
   defaultProfessional: string | null;
+  /** Solo el admin elige profesional o "todo el equipo"; un peluquero marca su propia agenda. */
+  canChooseTeam: boolean;
   starts: Option[];
   ends: Option[];
   noon: number;
 }) {
-  const [state, action] = useActionState<RangeState, FormData>(ownerSetRange, { error: null });
+  const [state, action] = useActionState<RangeState, FormData>(staffSetRange, { error: null });
   const first = starts[0]?.value ?? 0;
   const last = ends.at(-1)?.value ?? 1440;
   const [from, setFrom] = useState(first);
@@ -59,18 +62,21 @@ export function AvailabilityPanel({
 
       <form action={action} className="grid gap-4 px-4 pt-2 md:grid-cols-[1fr_auto] md:items-end">
         <input type="hidden" name="date" value={date} />
-        <div className="grid gap-3 sm:grid-cols-3">
-          <label className="flex flex-col gap-1.5 text-sm font-semibold">
-            Profesional
-            <select name="professionalId" defaultValue={defaultProfessional ?? "todos"} className={selectClass}>
-              <option value="todos">Todo el equipo</option>
-              {professionals.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-          </label>
+        <div className={cx("grid gap-3", canChooseTeam ? "sm:grid-cols-3" : "sm:grid-cols-2")}>
+          {!canChooseTeam && <input type="hidden" name="professionalId" value={defaultProfessional ?? ""} />}
+          {canChooseTeam && (
+            <label className="flex flex-col gap-1.5 text-sm font-semibold">
+              Profesional
+              <select name="professionalId" defaultValue={defaultProfessional ?? "todos"} className={selectClass}>
+                <option value="todos">Todo el equipo</option>
+                {professionals.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           <label className="flex flex-col gap-1.5 text-sm font-semibold">
             Desde
             <select name="from" value={from} onChange={(e) => setFrom(Number(e.target.value))} className={selectClass}>
@@ -91,7 +97,7 @@ export function AvailabilityPanel({
               ))}
             </select>
           </label>
-          <div className="flex flex-wrap gap-2 sm:col-span-3" role="group" aria-label="Atajos de horario">
+          <div className="flex flex-wrap gap-2 sm:col-span-full" role="group" aria-label="Atajos de horario">
             {presets.map((p) => {
               const on = p.from === from && p.to === to;
               return (

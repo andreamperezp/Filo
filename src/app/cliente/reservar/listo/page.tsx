@@ -1,14 +1,16 @@
 import { redirect } from "next/navigation";
 import { IconCheck } from "@tabler/icons-react";
-import { BUSINESS, PROFESSIONAL_BY_ID, SERVICE_BY_ID } from "@/data/catalog";
+import { BUSINESS } from "@/data/catalog";
 import { formatLongDay, formatTime } from "@/domain/time";
 import { getClientBookings } from "@/server/bookings";
 import { requireClient } from "@/server/session";
 import { ButtonLink, Screen } from "@/components/ui";
+import { getCatalog } from "@/server/catalog";
 
 export const metadata = { title: "Turno confirmado" };
 
 export default async function Done({ searchParams }: PageProps<"/cliente/reservar/listo">) {
+  const catalog = await getCatalog();
   const client = await requireClient();
   const { turno, cambio } = await searchParams;
   const { upcoming } = await getClientBookings(client.id);
@@ -30,7 +32,8 @@ export default async function Done({ searchParams }: PageProps<"/cliente/reserva
             {formatLongDay(booking.date)} · {formatTime(booking.start)}
           </p>
           <p className="mt-1">
-            {SERVICE_BY_ID.get(booking.serviceId)?.name} con {PROFESSIONAL_BY_ID.get(booking.professionalId)?.name}
+            {catalog.serviceById.get(booking.serviceId)?.name} con{" "}
+            {catalog.professionalById.get(booking.professionalId)?.name}
           </p>
           <p className="mt-1 text-sm text-muted">{BUSINESS.address}</p>
         </div>

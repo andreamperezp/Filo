@@ -1,13 +1,14 @@
-import { SERVICES } from "@/data/catalog";
 import { formatMoney } from "@/domain/money";
 import { formatDuration } from "@/domain/time";
 import { ChoiceCard, H1, Screen, ServiceIcon, TopBar } from "@/components/ui";
 import { flowHref, readFlowParams } from "./params";
+import { getCatalog } from "@/server/catalog";
 
 export const metadata = { title: "Elegí el servicio" };
 
 /** Paso 1 de 4: servicio. */
 export default async function PickService({ searchParams }: PageProps<"/cliente/reservar">) {
+  const catalog = await getCatalog();
   const params = await readFlowParams(searchParams);
 
   return (
@@ -16,7 +17,7 @@ export default async function PickService({ searchParams }: PageProps<"/cliente/
       <main className="flex-1 pb-8 md:pb-12">
         <H1>¿Qué servicio querés?</H1>
         <ul className="grid gap-2.5 px-4 md:grid-cols-2 md:gap-3">
-          {SERVICES.map((s) => (
+          {catalog.publicServices.map((s) => (
             <li key={s.id}>
               <ChoiceCard
                 href={flowHref("/cliente/reservar/profesional", { servicio: s.id })}

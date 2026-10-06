@@ -3,10 +3,11 @@
 **Filo** es una app web de turnos online para una peluquería/barbería de barrio
 (Av. San Martín 2140, Villa del Parque). Tiene dos caras:
 
-| Rol         | Quién                               | Para qué la usa                                                                                                                                |
-| ----------- | ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Cliente** | Martín, que se corta cada 3 semanas | Reservar en menos de un minuto, ver su próximo turno, cambiarlo o cancelarlo sin llamar.                                                       |
-| **Dueña**   | Romina, dueña y colorista           | Ver la agenda del día entre cliente y cliente, saber al instante quién reservó o canceló, bloquear horarios y contactar clientes por WhatsApp. |
+| Rol             | Quién                               | Para qué la usa                                                                                                       |
+| --------------- | ----------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| **Cliente**     | Martín, que se corta cada 3 semanas | Reservar en menos de un minuto, ver su próximo turno, cambiarlo o cancelarlo sin llamar.                              |
+| **Superadmin**  | Romina, dueña y colorista           | Gestión centralizada: agenda de todo el equipo, alta y baja de peluqueros con su propio acceso, turnos de cualquiera. |
+| **Peluquero/a** | Lucas, Sofía y quien se sume        | Su propia agenda: ver sus turnos, marcar cuándo no atiende y agendar turnos rápidos para sí.                          |
 
 > El problema que resuelve: hoy los turnos se piden por WhatsApp e Instagram y
 > se anotan en un cuaderno. La dueña pierde tiempo respondiendo mensajes con las
@@ -37,8 +38,9 @@ setentoso de la referencia) y **Outfit** (texto e interfaz).
 ### Ingreso
 
 - **Clientes (`/`)**: entran con su **celular** y un **código de 6 números** (sin contraseña ni registro previo). La primera vez solo se les pide el nombre.
-- **Dueña (`/equipo`)**: email y contraseña, con bloqueo temporal tras 5 intentos fallidos.
-- Sesión en cookie firmada (HMAC) y `httpOnly`: 30 días para clientes, 12 h para la dueña.
+- **Equipo (`/equipo`)**: cada persona entra con **su propio email y contraseña** (hash scrypt), con bloqueo temporal tras 5 intentos fallidos.
+  - Las cuentas las crea el superadmin con una **contraseña temporal** que se muestra una sola vez; en el primer ingreso cada uno elige la suya.
+- Sesión en cookie firmada (HMAC) y `httpOnly`: 30 días para clientes, 12 h para el equipo. Si el admin desactiva una cuenta, la sesión deja de valer al instante.
 
 ### App de clientes (`/cliente`)
 
@@ -51,13 +53,27 @@ setentoso de la referencia) y **Outfit** (texto e interfaz).
 - **Mis turnos**: próximos (cambiar / cancelar con confirmación) y anteriores (con "Repetir" en un toque).
 - **Política de cancelación**: gratis hasta 24 h antes; después, link directo a WhatsApp.
 
-### Panel de la dueña (`/duena`)
+### Panel del equipo (`/panel`)
+
+|                                              | Superadmin                                       | Peluquero/a                              |
+| -------------------------------------------- | ------------------------------------------------ | ---------------------------------------- |
+| Agenda                                       | Todo el equipo, filtro por profesional, columnas | Solo la suya                             |
+| Marcar disponibilidad                        | Cualquier profesional o todo el equipo           | Solo la suya                             |
+| Turno rápido                                 | Para cualquiera (o "cualquiera disponible")      | Solo en su agenda                        |
+| Detalle y cancelación de turnos              | Todos                                            | Solo los suyos                           |
+| Actividad                                    | De todo el local                                 | De sus turnos (con su propio "sin leer") |
+| **Equipo** (alta, baja, blanqueo, servicios) | Sí                                               | No                                       |
+
+Los permisos se verifican **en el servidor**, no solo en la pantalla: un peluquero no puede ver ni tocar turnos ajenos aunque modifique la URL o el formulario.
 
 - **Agenda**: selector de 14 días con cantidad de turnos por día y filtro por profesional.
   - Vista "Todos": lista cronológica en celular; **una columna por profesional** en tablet y escritorio.
   - Vista por profesional: grilla completa con cada hueco **Libre → Agendar / Bloquear** y **No disponible → Liberar**.
 - **Marcar disponibilidad**: no disponible / disponible para el **día completo, la mañana, la tarde o un rango** (un profesional o todo el equipo). Los horarios que ya tienen turno no se tocan y se informa cuántos son.
-- **Turno rápido** (botón fijo en la cabecera): para la clienta que está en el local o llama. Una sola pantalla con nombre, celular opcional, servicio, profesional, día y hora, con el **primer horario libre ya elegido**. Si se carga el celular, el turno aparece en su cuenta cuando entre a Filo.
+- **Turno rápido** (botón fijo en la cabecera): para la clienta que está en el local o llama. Una sola pantalla con nombre, celular opcional, servicio, profesional, **calendario** y hora, con el **primer horario libre ya elegido**. Si se carga el celular, el turno aparece en su cuenta cuando entre a Filo.
+  - **Calendario** mensual de 45 días: cada día muestra cuántos horarios libres tiene, con color (mucho / poco lugar) y navegación por teclado.
+  - Servicio **"Otro"** (solo equipo): duración a elegir (30 min a 3 h) y motivo opcional ("prueba de peinado"). Precio a convenir.
+- **Equipo** (solo superadmin): sumar personas (peluquero/a o superadmin, especialidad, servicios que hace), blanquear contraseña, desactivar/reactivar y editar servicios. Quien se suma aparece automáticamente en la reserva de clientes.
   - Los turnos nuevos que todavía no vio se resaltan con "Nuevo".
 - **Detalle del turno**: estado, datos del cliente, botones de WhatsApp (con mensaje precargado) y Llamar, seña pagada y saldo, "Marcar como atendido" y "Cancelar turno".
 - **Actividad**: reservas, cambios y cancelaciones con badge de no leídos.
@@ -67,13 +83,13 @@ setentoso de la referencia) y **Outfit** (texto e interfaz).
 
 Filo se usa desde un **link compartido** (no es una app de tienda), así que cada pantalla está diseñada para los tres tamaños:
 
-|                  | Celular (< 768 px)                                        | Tablet (768–1023 px)                  | Escritorio (≥ 1024 px)         |
-| ---------------- | --------------------------------------------------------- | ------------------------------------- | ------------------------------ |
-| Navegación       | Barra inferior (zona del pulgar)                          | Cabecera con logo y pestañas          | Igual que tablet               |
-| Inicio cliente   | Una columna                                               | Dos columnas: lo personal / servicios | Igual, más aire                |
-| Elegir horario   | Días deslizables, 4 horarios por fila, resumen fijo abajo | 14 días a la vista, 8 por fila        | Resumen en tarjeta lateral     |
-| Agenda dueña     | Lista cronológica                                         | Columna por profesional               | 14 días en una fila + columnas |
-| Flujos enfocados | Sin cabecera ni pestañas, con "Volver"                    | Con cabecera                          | Con cabecera                   |
+|                   | Celular (< 768 px)                                        | Tablet (768–1023 px)                  | Escritorio (≥ 1024 px)         |
+| ----------------- | --------------------------------------------------------- | ------------------------------------- | ------------------------------ |
+| Navegación        | Barra inferior (zona del pulgar)                          | Cabecera con logo y pestañas          | Igual que tablet               |
+| Inicio cliente    | Una columna                                               | Dos columnas: lo personal / servicios | Igual, más aire                |
+| Elegir horario    | Días deslizables, 4 horarios por fila, resumen fijo abajo | 14 días a la vista, 8 por fila        | Resumen en tarjeta lateral     |
+| Agenda del equipo | Lista cronológica                                         | Columna por profesional               | 14 días en una fila + columnas |
+| Flujos enfocados  | Sin cabecera ni pestañas, con "Volver"                    | Con cabecera                          | Con cabecera                   |
 
 ---
 
@@ -100,12 +116,12 @@ Más detalle y decisiones de arquitectura en [`docs/arquitectura.md`](docs/arqui
 
 ## Documentación
 
-| Documento                                      | Contenido                                                                              |
-| ---------------------------------------------- | -------------------------------------------------------------------------------------- |
-| [`docs/user-flows.md`](docs/user-flows.md)     | Flujos de usuario de cliente y dueña (diagramas Mermaid) y casos borde.                |
-| [`docs/ux-por-rol.md`](docs/ux-por-rol.md)     | Buenas prácticas de UX aplicadas a cada rol y dónde están en el código.                |
-| [`docs/arquitectura.md`](docs/arquitectura.md) | Capas, estructura de carpetas, modelo de datos, seguridad, decisiones (ADR) y roadmap. |
-| [`CONTRIBUTING.md`](CONTRIBUTING.md)           | Convenciones de código, ramas, commits y checklist de PR.                              |
+| Documento                                      | Contenido                                                                                 |
+| ---------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| [`docs/user-flows.md`](docs/user-flows.md)     | Flujos de usuario de clientes, peluqueros y superadmin (diagramas Mermaid) y casos borde. |
+| [`docs/ux-por-rol.md`](docs/ux-por-rol.md)     | Buenas prácticas de UX aplicadas a cada rol y dónde están en el código.                   |
+| [`docs/arquitectura.md`](docs/arquitectura.md) | Capas, estructura de carpetas, modelo de datos, seguridad, decisiones (ADR) y roadmap.    |
+| [`CONTRIBUTING.md`](CONTRIBUTING.md)           | Convenciones de código, ramas, commits y checklist de PR.                                 |
 
 ---
 
@@ -121,13 +137,16 @@ npm run dev
 Abrí <http://localhost:3000>:
 
 - **Cliente**: ingresá un celular. En modo demo no se envían mensajes y el código aparece en pantalla. Con `11 5523-8841` entrás como Martín (tiene turnos); con cualquier otro número ves el alta de un cliente nuevo.
-- **Dueña**: andá a `/equipo` (link al pie del login). Las credenciales de prueba están en `.env.development`.
+- **Equipo**: andá a `/equipo` (link al pie del login). Cuentas de prueba (contraseñas en `.env.development`):
+  - Superadmin: el email de `ADMIN_EMAIL`.
+  - Peluqueros: `lucas@filo.test` y `sofia@filo.test` (con `DEV_STAFF_PASSWORD`).
+  - O creá una cuenta nueva desde **Equipo** y probá el primer ingreso con la contraseña temporal.
 
 Para ver la interacción entre roles, abrí cada uno en una ventana distinta (una en
-modo incógnito): lo que reserva el cliente aparece en la agenda de la dueña.
+modo incógnito): lo que reserva el cliente aparece en la agenda del equipo.
 
 > `.env.development` tiene **solo valores de prueba** para desarrollo local. En
-> producción hay que definir `SESSION_SECRET`, `OWNER_EMAIL` y `OWNER_PASSWORD`
+> producción hay que definir `SESSION_SECRET`, `ADMIN_EMAIL` y `ADMIN_PASSWORD`
 > (ver `.env.example`); si faltan, el ingreso falla en vez de usar valores inseguros.
 
 > **Demo:** los datos viven en memoria y se generan relativos a la fecha de hoy.
@@ -160,7 +179,7 @@ src/
     ├── cliente/           App de clientes
     │   ├── reservar/      Flujo de reserva (servicio → profesional → horario → confirmar → listo)
     │   └── turnos/        Mis turnos
-    └── duena/             Panel de la dueña (agenda, nuevo = turno rápido, turnos/[id], actividad)
+    └── panel/             Panel del equipo (agenda, nuevo = turno rápido, turnos/[id], actividad, equipo)
 supabase/migrations/       Esquema Postgres con RLS para la fase 2
 docs/                      User flows, UX por rol y arquitectura
 ```
@@ -169,8 +188,8 @@ docs/                      User flows, UX por rol y arquitectura
 
 ## Roadmap
 
-- [x] **Fase 1 · MVP navegable**: flujos completos de cliente y dueña, reglas de negocio testeadas.
-- [ ] **Fase 2 · Datos reales**: `SupabaseRepository`, Supabase Auth (cliente con OTP por WhatsApp/SMS, dueña con email), Realtime en la agenda.
+- [x] **Fase 1 · MVP navegable**: flujos completos de cliente y equipo, roles y permisos, reglas de negocio testeadas.
+- [ ] **Fase 2 · Datos reales**: `SupabaseRepository`, Supabase Auth (cliente con OTP por WhatsApp/SMS, equipo con email), Realtime en la agenda.
 - [ ] **Fase 3 · Pagos y avisos**: seña con Mercado Pago, recordatorios por WhatsApp, devolución automática de seña.
 - [ ] **Fase 4 · Gestión**: ABM de servicios, profesionales y horarios; métricas de ocupación; lista de espera para huecos liberados.
 

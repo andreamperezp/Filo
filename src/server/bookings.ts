@@ -3,12 +3,12 @@ import "server-only";
 import { connection } from "next/server";
 import {
   bookingWindow,
+  dayGrid,
   firstAvailable,
   freeSlotCount,
   isBusy,
-  planBlockRange,
   isClosed,
-  dayGrid,
+  planBlockRange,
   slotsForDay,
   type AgendaSnapshot,
   type Now,
@@ -17,6 +17,7 @@ import { clientCanModify, ownerCanMarkAttended } from "@/domain/policies";
 import { addDays, formatRelativeDay, formatTime, minutesUntil, nowIn } from "@/domain/time";
 import {
   ANY_PROFESSIONAL,
+  type ActivityEvent,
   type Booking,
   type IsoDate,
   type MinuteOfDay,
@@ -24,14 +25,20 @@ import {
   type ProfessionalChoice,
   type Service,
 } from "@/domain/types";
-import { BUSINESS, PROFESSIONAL_BY_ID, SERVICE_BY_ID } from "@/data/catalog";
+import { BUSINESS, OTHER_DURATIONS, STAFF_BOOKING_WINDOW_DAYS } from "@/data/catalog";
 import { getMemoryRepository } from "@/data/memory-repository";
 import type { Repository } from "@/data/repository";
+import { comboKey } from "@/lib/combo-key";
+import { getCatalog, type Catalog } from "./catalog";
+import { canManageProfessional, staffScope, type StaffSessionUser } from "./session";
 
 /**
  * Capa de aplicación: orquesta repositorio + reglas de dominio. Las pantallas
  * (Server Components) leen con las funciones `get*` y las Server Actions
  * mutan con los comandos de abajo. Ningún componente toca el repositorio.
+ *
+ * Los permisos del equipo se verifican ACÁ (no solo en la pantalla): un
+ * peluquero solo puede ver y modificar turnos de su propia agenda.
  */
 
 const repo: () => Repository = getMemoryRepository;
@@ -41,22 +48,37 @@ export async function currentNow(): Promise<Now> {
   return nowIn(BUSINESS.timeZone);
 }
 
-async function agendaFor(today: IsoDate): Promise<AgendaSnapshot> {
-  const range = { from: today, to: addDays(today, BUSINESS.bookingWindowDays) };
+async function agendaFor(today: IsoDate, days = STAFF_BOOKING_WINDOW_DAYS): Promise<AgendaSnapshot> {
+  const range = { from: today, to: addDays(today, days) };
   const [bookings, blocked] = await Promise.all([repo().listBookings(range), repo().listBlocked(range)]);
   return { bookings, blocked };
 }
 
-export function serviceOrNull(id: string | undefined): Service | null {
-  return (id && SERVICE_BY_ID.get(id)) || null;
+const staffBusiness = { ...BUSINESS, bookingWindowDays: STAFF_BOOKING_WINDOW_DAYS };
+
+/** Servicio para la clienta (nunca devuelve los "solo equipo"). */
+export async function getPublicService(id: string | undefined): Promise<Service | null> {
+  const service = id ? (await getCatalog()).serviceById.get(id) : undefined;
+  return service && !service.staffOnly && service.professionalIds.length ? service : null;
 }
 
-export function professionalName(choice: ProfessionalChoice): string {
-  return choice === ANY_PROFESSIONAL ? "Cualquiera disponible" : (PROFESSIONAL_BY_ID.get(choice)?.name ?? "");
+export function professionalName(catalog: Catalog, choice: ProfessionalChoice): string {
+  return choice === ANY_PROFESSIONAL ? "Cualquiera disponible" : (catalog.professionalById.get(choice)?.name ?? "");
 }
 
 export function describeWhen(b: Pick<Booking, "date" | "start">, today: IsoDate): string {
   return `${formatRelativeDay(b.date, today)} · ${formatTime(b.start)}`;
+}
+
+/** Nombre a mostrar del servicio de un turno ("Otro · Retoque de raíz"). */
+export function bookingServiceLabel(catalog: Catalog, b: Booking): string {
+  const name = catalog.serviceById.get(b.serviceId)?.name ?? "Servicio";
+  return b.note ? `${name} · ${b.note}` : name;
+}
+
+/** Variante del servicio con otra duración (para "Otro"). */
+function withDuration(service: Service, durationMin?: number): Service {
+  return service.variablePrice && durationMin ? { ...service, durationMin } : service;
 }
 
 /* ───────────────────────────── Cliente ───────────────────────────── */
@@ -77,15 +99,15 @@ export async function getClientBookings(clientId: string) {
 }
 
 export async function getProfessionalOptions(service: Service) {
-  const now = await currentNow();
-  const agenda = await agendaFor(now.date);
-  const base = { business: BUSINESS, services: SERVICE_BY_ID, agenda, now, service };
+  const [now, catalog] = await Promise.all([currentNow(), getCatalog()]);
+  const agenda = await agendaFor(now.date, BUSINESS.bookingWindowDays);
+  const base = { business: BUSINESS, agenda, now, service };
   const choices: ProfessionalChoice[] = [ANY_PROFESSIONAL, ...service.professionalIds];
   return {
     now,
     options: choices.map((choice) => ({
       choice,
-      professional: choice === ANY_PROFESSIONAL ? null : PROFESSIONAL_BY_ID.get(choice)!,
+      professional: choice === ANY_PROFESSIONAL ? null : catalog.professionalById.get(choice)!,
       next: firstAvailable({ ...base, professional: choice }),
     })),
   };
@@ -98,10 +120,9 @@ export async function getAvailability(input: {
   ignoreBookingId?: string;
 }) {
   const now = await currentNow();
-  const agenda = await agendaFor(now.date);
+  const agenda = await agendaFor(now.date, BUSINESS.bookingWindowDays);
   const base = {
     business: BUSINESS,
-    services: SERVICE_BY_ID,
     agenda,
     now,
     service: input.service,
@@ -123,19 +144,26 @@ export async function getAvailability(input: {
   };
 }
 
-/* ───────────────────────────── Dueña ───────────────────────────── */
+/* ───────────────────────────── Equipo: lectura ───────────────────────────── */
 
 export type AgendaRow =
   | { kind: "booking"; booking: Booking }
   | { kind: "free"; start: MinuteOfDay }
   | { kind: "blocked"; start: MinuteOfDay };
 
-export async function getOwnerDay(date: IsoDate, professionalId: string | null) {
-  const now = await currentNow();
+/**
+ * Agenda de un día. El admin puede ver todo el equipo o filtrar; un
+ * peluquero siempre ve solo la suya (aunque pida otra por URL).
+ */
+export async function getStaffDay(user: StaffSessionUser, date: IsoDate, requestedPro: string | null) {
+  const [now, catalog] = await Promise.all([currentNow(), getCatalog()]);
+  const scope = staffScope(user);
+  const professionalId = scope ?? requestedPro;
   const window = bookingWindow(BUSINESS, now.date);
   const day = window.includes(date) ? date : now.date;
-  const agenda = await agendaFor(now.date);
-  const active = agenda.bookings.filter((b) => b.date === day && b.status !== "cancelled");
+  const agenda = await agendaFor(now.date, BUSINESS.bookingWindowDays);
+  const inScope = (b: Booking) => !scope || b.professionalId === scope;
+  const active = agenda.bookings.filter((b) => b.date === day && b.status !== "cancelled" && inScope(b));
   const visible = professionalId ? active.filter((b) => b.professionalId === professionalId) : active;
 
   let rows: AgendaRow[];
@@ -152,7 +180,7 @@ export async function getOwnerDay(date: IsoDate, professionalId: string | null) 
       const booking = visible.find((b) => b.start === start);
       if (booking) {
         rows.push({ kind: "booking", booking });
-        skipUntil = start + (SERVICE_BY_ID.get(booking.serviceId)?.durationMin ?? BUSINESS.slotMin);
+        skipUntil = start + booking.durationMin;
         continue;
       }
       if (minutesUntil(now, { date: day, start }) <= 0) continue;
@@ -165,33 +193,53 @@ export async function getOwnerDay(date: IsoDate, professionalId: string | null) 
 
   return {
     now,
+    catalog,
     date: day,
+    professionalId,
+    /** Profesionales que esta persona puede ver/filtrar. */
+    team: catalog.professionals.filter((p) => !scope || p.id === scope),
     closed: isClosed(BUSINESS, day),
     rows,
     bookingCount: visible.length,
     days: window.map((d) => ({
       date: d,
       closed: isClosed(BUSINESS, d),
-      count: agenda.bookings.filter((b) => b.date === d && b.status !== "cancelled").length,
+      count: agenda.bookings.filter((b) => b.date === d && b.status !== "cancelled" && inScope(b)).length,
     })),
   };
 }
 
-export async function getBookingDetail(id: string) {
-  const now = await currentNow();
+export async function getBookingDetail(user: StaffSessionUser, id: string) {
+  const [now, catalog] = await Promise.all([currentNow(), getCatalog()]);
   const booking = await repo().getBooking(id);
-  if (!booking) return null;
-  return { now, booking, canMarkAttended: ownerCanMarkAttended(booking, now) };
+  if (!booking || !canManageProfessional(user, booking.professionalId)) return null;
+  return { now, catalog, booking, canMarkAttended: ownerCanMarkAttended(booking, now) };
 }
 
-export async function getActivity() {
+export type ActivityView = Omit<ActivityEvent, "readBy"> & { read: boolean };
+
+/** Actividad visible para esta persona: todo (admin) o solo de sus turnos, con su propio "leído". */
+export async function getActivityFor(user: StaffSessionUser): Promise<ActivityView[]> {
   await connection();
-  return repo().listActivity();
+  const scope = staffScope(user);
+  const events = await repo().listActivity();
+  const visible: ActivityView[] = [];
+  for (const { readBy, ...event } of events) {
+    if (scope) {
+      const booking = event.bookingId ? await repo().getBooking(event.bookingId) : null;
+      if (booking?.professionalId !== scope) continue;
+    }
+    visible.push({ ...event, read: readBy.includes(user.id) });
+  }
+  return visible;
 }
 
-export async function getUnreadActivityCount(): Promise<number> {
-  await connection();
-  return (await repo().listActivity()).filter((a) => !a.read).length;
+export async function markActivityReadFor(user: StaffSessionUser) {
+  const events = await getActivityFor(user);
+  await repo().markActivityRead(
+    user.id,
+    events.filter((e) => !e.read).map((e) => e.id),
+  );
 }
 
 /* ───────────────────────────── Comandos ───────────────────────────── */
@@ -199,28 +247,32 @@ export async function getUnreadActivityCount(): Promise<number> {
 export type CommandResult<T = undefined> = { ok: true; value: T } | { ok: false; error: string };
 
 const fail = (error: string) => ({ ok: false, error }) as const;
+const NOT_YOURS = "Ese turno no es de tu agenda.";
 
 async function logActivity(
-  kind: "created" | "cancelled" | "rescheduled",
+  kind: ActivityEvent["kind"],
   booking: Booking,
   title: string,
   now: Now,
-  read = false,
+  options: { readBy?: string[]; detail?: string } = {},
 ) {
+  const catalog = await getCatalog();
   await repo().insertActivity({
     id: crypto.randomUUID(),
     kind,
     bookingId: booking.id,
     title,
-    detail: `${describeWhen(booking, now.date)} · ${PROFESSIONAL_BY_ID.get(booking.professionalId)?.name}`,
+    detail:
+      options.detail ??
+      `${describeWhen(booking, now.date)} · ${catalog.professionalById.get(booking.professionalId)?.name}`,
     at: new Date().toISOString(),
-    read,
+    readBy: options.readBy ?? [],
   });
 }
 
 /**
  * Elige profesional y revalida disponibilidad *dentro* de la transacción:
- * entre que el cliente vio el horario y confirmó, otra persona pudo tomarlo.
+ * entre que se vio el horario y se confirmó, otra persona pudo tomarlo.
  */
 function resolveProfessional(
   agenda: AgendaSnapshot,
@@ -233,7 +285,6 @@ function resolveProfessional(
 ) {
   const slot = slotsForDay({
     business: BUSINESS,
-    services: SERVICE_BY_ID,
     agenda,
     now,
     service,
@@ -251,38 +302,59 @@ export async function createBooking(input: {
   date: IsoDate;
   start: MinuteOfDay;
   payment: PaymentMethod;
-  /** Quién lo agenda. Si lo carga la dueña, no aparece como "Nuevo" ni genera aviso. */
-  source?: "client" | "owner";
+  /** Duración elegida (solo servicios de duración variable, como "Otro"). */
+  durationMin?: number;
+  note?: string;
+  /** Si lo carga alguien del equipo: no aparece como "Nuevo" para esa persona. */
+  staff?: StaffSessionUser;
 }): Promise<CommandResult<Booking>> {
-  const service = serviceOrNull(input.serviceId);
-  if (!service) return fail("El servicio no existe.");
+  const catalog = await getCatalog();
+  const base = catalog.serviceById.get(input.serviceId);
+  if (!base || (base.staffOnly && !input.staff)) return fail("El servicio no existe.");
+  if (base.variablePrice && !OTHER_DURATIONS.includes(input.durationMin as (typeof OTHER_DURATIONS)[number])) {
+    return fail("Elegí cuánto dura el turno.");
+  }
+  const service = withDuration(base, input.durationMin);
   if (input.professional !== ANY_PROFESSIONAL && !service.professionalIds.includes(input.professional)) {
     return fail("Ese profesional no hace este servicio.");
   }
 
   return repo().transaction(async () => {
     const now = nowIn(BUSINESS.timeZone);
+    const window = bookingWindow(input.staff ? staffBusiness : BUSINESS, now.date);
+    if (!window.includes(input.date)) return fail("Esa fecha está fuera del período de reservas.");
+
     const agenda = await agendaFor(now.date);
     const assignTo = resolveProfessional(agenda, service, input.professional, input.date, input.start, now);
     if (!assignTo) return fail("Ese horario se acaba de ocupar. Elegí otro, por favor.");
+    if (input.staff && !canManageProfessional(input.staff, assignTo)) return fail(NOT_YOURS);
 
     const booking: Booking = {
       id: crypto.randomUUID(),
       date: input.date,
       start: input.start,
       serviceId: service.id,
+      durationMin: service.durationMin,
+      note: input.note || undefined,
       professionalId: assignTo,
       clientId: input.client.id,
       clientName: input.client.name,
       clientPhone: input.client.phone,
       payment: input.payment,
       status: "confirmed",
-      unseenByOwner: input.source !== "owner",
+      // Lo cargó el equipo: igual se marca "Nuevo" si quedó en la agenda de otra persona.
+      unseenByOwner: !input.staff || input.staff.professionalId !== assignTo,
       createdAt: new Date().toISOString(),
     };
     await repo().insertBooking(booking);
-    if (input.source === "owner") {
-      await logActivity("created", booking, `Agendaste a ${booking.clientName} · ${service.name}`, now, true);
+    if (input.staff) {
+      await logActivity(
+        "created",
+        booking,
+        `${input.staff.firstName} agendó a ${booking.clientName} · ${bookingServiceLabel(catalog, booking)}`,
+        now,
+        { readBy: [input.staff.id] },
+      );
     } else {
       await logActivity("created", booking, `${booking.clientName} reservó ${service.name}`, now);
     }
@@ -297,6 +369,7 @@ export async function rescheduleBooking(input: {
   date: IsoDate;
   start: MinuteOfDay;
 }): Promise<CommandResult<Booking>> {
+  const catalog = await getCatalog();
   return repo().transaction(async () => {
     const now = nowIn(BUSINESS.timeZone);
     const booking = await repo().getBooking(input.bookingId);
@@ -304,7 +377,12 @@ export async function rescheduleBooking(input: {
     if (!clientCanModify(BUSINESS, booking, now)) {
       return fail(`Faltan menos de ${BUSINESS.freeCancellationHours} h. Escribinos por WhatsApp para cambiarlo.`);
     }
-    const service = serviceOrNull(booking.serviceId)!;
+    if (!bookingWindow(BUSINESS, now.date).includes(input.date)) {
+      return fail("Esa fecha está fuera del período de reservas.");
+    }
+    const base = catalog.serviceById.get(booking.serviceId);
+    if (!base) return fail("Ese servicio ya no está disponible. Escribinos por WhatsApp.");
+    const service = { ...base, durationMin: booking.durationMin };
     const agenda = await agendaFor(now.date);
     const assignTo = resolveProfessional(agenda, service, input.professional, input.date, input.start, now, booking.id);
     if (!assignTo) return fail("Ese horario se acaba de ocupar. Elegí otro, por favor.");
@@ -321,6 +399,7 @@ export async function rescheduleBooking(input: {
 }
 
 export async function cancelByClient(clientId: string, bookingId: string): Promise<CommandResult> {
+  const catalog = await getCatalog();
   return repo().transaction(async () => {
     const now = nowIn(BUSINESS.timeZone);
     const booking = await repo().getBooking(bookingId);
@@ -332,129 +411,146 @@ export async function cancelByClient(clientId: string, bookingId: string): Promi
     await logActivity(
       "cancelled",
       booking,
-      `${booking.clientName} canceló ${serviceOrNull(booking.serviceId)?.name}`,
+      `${booking.clientName} canceló ${bookingServiceLabel(catalog, booking)}`,
       now,
     );
     return { ok: true, value: undefined } as const;
   });
 }
 
-export async function cancelByOwner(bookingId: string): Promise<CommandResult> {
+export async function cancelByStaff(user: StaffSessionUser, bookingId: string): Promise<CommandResult> {
   const now = nowIn(BUSINESS.timeZone);
   const booking = await repo().getBooking(bookingId);
-  if (!booking || booking.status !== "confirmed") return fail("El turno ya no está activo.");
+  if (!booking || !canManageProfessional(user, booking.professionalId)) return fail(NOT_YOURS);
+  if (booking.status !== "confirmed") return fail("El turno ya no está activo.");
   await repo().updateBooking(bookingId, { status: "cancelled", unseenByOwner: false });
-  await repo().insertActivity({
-    id: crypto.randomUUID(),
-    kind: "cancelled",
-    bookingId,
-    title: `Cancelaste el turno de ${booking.clientName}`,
-    detail: `${describeWhen(booking, now.date)} · se le avisó por WhatsApp`,
-    at: new Date().toISOString(),
-    read: true,
+  await logActivity("cancelled", booking, `${user.firstName} canceló el turno de ${booking.clientName}`, now, {
+    readBy: [user.id],
+    detail: `${describeWhen(booking, now.date)} · ${booking.clientPhone ? "se le avisó por WhatsApp" : "sin celular para avisarle"}`,
   });
   return { ok: true, value: undefined };
 }
 
-export async function markAttended(bookingId: string): Promise<CommandResult> {
+export async function markAttended(user: StaffSessionUser, bookingId: string): Promise<CommandResult> {
   const now = nowIn(BUSINESS.timeZone);
   const booking = await repo().getBooking(bookingId);
-  if (!booking || !ownerCanMarkAttended(booking, now)) return fail("Todavía no se puede marcar como atendido.");
+  if (!booking || !canManageProfessional(user, booking.professionalId)) return fail(NOT_YOURS);
+  if (!ownerCanMarkAttended(booking, now)) return fail("Todavía no se puede marcar como atendido.");
   await repo().updateBooking(bookingId, { status: "attended" });
   return { ok: true, value: undefined };
 }
 
-export async function markSeen(bookingId: string) {
-  await repo().updateBooking(bookingId, { unseenByOwner: false });
+export async function markSeen(user: StaffSessionUser, bookingId: string) {
+  const booking = await repo().getBooking(bookingId);
+  if (booking && canManageProfessional(user, booking.professionalId)) {
+    await repo().updateBooking(bookingId, { unseenByOwner: false });
+  }
 }
 
-export async function toggleBlockedSlot(slot: { date: IsoDate; professionalId: string; start: MinuteOfDay }) {
+export async function toggleBlockedSlot(
+  user: StaffSessionUser,
+  slot: { date: IsoDate; professionalId: string; start: MinuteOfDay },
+): Promise<CommandResult> {
+  if (!canManageProfessional(user, slot.professionalId)) return fail("Solo podés cambiar tu propia agenda.");
   const now = nowIn(BUSINESS.timeZone);
   const agenda = await agendaFor(now.date);
-  if (
-    isBusy(
-      { ...agenda, blocked: [] },
-      SERVICE_BY_ID,
-      BUSINESS,
-      slot.professionalId,
-      slot.date,
-      slot.start,
-      BUSINESS.slotMin,
-    )
-  ) {
+  if (isBusy({ ...agenda, blocked: [] }, BUSINESS, slot.professionalId, slot.date, slot.start, BUSINESS.slotMin)) {
     return fail("Ese horario ya tiene un turno.");
   }
   await repo().toggleBlocked(slot);
-  return { ok: true, value: undefined } as const;
+  return { ok: true, value: undefined };
 }
 
-export async function markActivityRead() {
-  await repo().markAllActivityRead();
-}
+/* ───────────── Equipo: disponibilidad y turno rápido ───────────── */
 
-/* ───────────── Dueña: disponibilidad y turno rápido ───────────── */
-
-export async function setRangeBlocked(input: {
-  date: IsoDate;
-  professionalIds: string[];
-  from: MinuteOfDay;
-  to: MinuteOfDay;
-  blocked: boolean;
-}): Promise<CommandResult<{ changed: number; busy: number }>> {
+export async function setRangeBlocked(
+  user: StaffSessionUser,
+  input: { date: IsoDate; professionalIds: string[]; from: MinuteOfDay; to: MinuteOfDay; blocked: boolean },
+): Promise<CommandResult<{ changed: number; busy: number }>> {
   if (input.from >= input.to) return fail("La hora de fin tiene que ser posterior a la de inicio.");
+  if (!input.professionalIds.every((id) => canManageProfessional(user, id))) {
+    return fail("Solo podés cambiar tu propia disponibilidad.");
+  }
   return repo().transaction(async () => {
     if (!input.blocked) {
       const changed = await repo().unblockRange(input);
       return { ok: true, value: { changed, busy: 0 } } as const;
     }
     const now = nowIn(BUSINESS.timeZone);
-    const plan = planBlockRange(await agendaFor(now.date), SERVICE_BY_ID, BUSINESS, input);
+    const plan = planBlockRange(await agendaFor(now.date), BUSINESS, input);
     await repo().blockSlots(plan.slots);
     return { ok: true, value: { changed: plan.slots.length, busy: plan.busy.length } } as const;
   });
 }
 
 /**
- * Datos para "Turno rápido": todos los horarios libres de los próximos 14 días
- * para cada combinación servicio + profesional. Se calculan una vez en el
- * servidor para que el formulario responda al instante mientras la dueña
- * atiende (sin esperar la red en cada cambio).
+ * Datos para "Turno rápido": servicios y equipo que esta persona puede
+ * agendar, y para cada combinación cuántos horarios libres hay por día
+ * (para pintar el calendario). Los horarios de un día puntual se piden
+ * aparte con `getQuickSlots`, así la página pesa poco aunque muestre 45 días.
  */
-export async function getQuickBookingOptions() {
-  const now = await currentNow();
+export async function getQuickBookingOptions(user: StaffSessionUser) {
+  const [now, catalog] = await Promise.all([currentNow(), getCatalog()]);
+  const scope = staffScope(user);
   const agenda = await agendaFor(now.date);
-  const days = bookingWindow(BUSINESS, now.date).filter((d) => !isClosed(BUSINESS, d));
-  const free: Record<string, Array<[MinuteOfDay, string]>> = {};
-  for (const service of SERVICE_BY_ID.values()) {
-    for (const professional of [ANY_PROFESSIONAL, ...service.professionalIds] as ProfessionalChoice[]) {
-      for (const date of days) {
-        const slots = slotsForDay({
-          business: BUSINESS,
-          services: SERVICE_BY_ID,
-          agenda,
-          now,
-          service,
-          professional,
-          date,
-        })
-          .filter((s) => s.assignTo)
-          .map((s) => [s.start, s.assignTo!] as [MinuteOfDay, string]);
-        if (slots.length) free[`${service.id}|${professional}|${date}`] = slots;
+  const days = bookingWindow(staffBusiness, now.date);
+  const team = catalog.professionals.filter((p) => !scope || p.id === scope);
+  const services = catalog.allServices.filter((s) => s.professionalIds.some((id) => team.some((p) => p.id === id)));
+
+  const counts: Record<string, number[]> = {};
+  for (const base of services) {
+    const durations = base.variablePrice ? OTHER_DURATIONS : [base.durationMin];
+    const choices = [
+      ...(scope ? [] : [ANY_PROFESSIONAL]),
+      ...base.professionalIds.filter((id) => !scope || id === scope),
+    ];
+    for (const durationMin of durations) {
+      const service = withDuration(base, durationMin);
+      for (const professional of choices) {
+        counts[comboKey(base.id, durationMin, professional)] = days.map((date) =>
+          isClosed(BUSINESS, date)
+            ? 0
+            : freeSlotCount({ business: BUSINESS, agenda, now, service, professional, date }),
+        );
       }
     }
   }
-  return { now, days, free };
+  return { now, catalog, days, team, services, counts, canChooseAny: !scope };
 }
 
-/** Turno cargado por la dueña (clienta en el local o por teléfono). */
-export async function createWalkInBooking(input: {
-  clientName: string;
-  phone: string | null;
-  serviceId: string;
-  professional: ProfessionalChoice;
-  date: IsoDate;
-  start: MinuteOfDay;
-}): Promise<CommandResult<Booking>> {
+export async function getQuickSlots(
+  user: StaffSessionUser,
+  input: { serviceId: string; durationMin: number; professional: ProfessionalChoice; date: IsoDate },
+): Promise<Array<[MinuteOfDay, string]>> {
+  const scope = staffScope(user);
+  if (scope && input.professional !== scope) return [];
+  const [now, catalog] = await Promise.all([currentNow(), getCatalog()]);
+  const base = catalog.serviceById.get(input.serviceId);
+  if (!base || !bookingWindow(staffBusiness, now.date).includes(input.date)) return [];
+  const service = withDuration(base, input.durationMin);
+  const agenda = await agendaFor(now.date);
+  return slotsForDay({ business: BUSINESS, agenda, now, service, professional: input.professional, date: input.date })
+    .filter((s) => s.assignTo)
+    .map((s) => [s.start, s.assignTo!]);
+}
+
+/** Turno cargado por el equipo (clienta en el local o por teléfono). */
+export async function createWalkInBooking(
+  user: StaffSessionUser,
+  input: {
+    clientName: string;
+    phone: string | null;
+    serviceId: string;
+    durationMin?: number;
+    note?: string;
+    professional: ProfessionalChoice;
+    date: IsoDate;
+    start: MinuteOfDay;
+  },
+): Promise<CommandResult<Booking>> {
+  const scope = staffScope(user);
+  if (scope && input.professional !== scope) return fail("Solo podés agendar en tu propia agenda.");
+
   // Con celular, el turno queda asociado a su cuenta: si después entra a Filo, lo ve en "Mis turnos".
   let client = { id: `walk-in-${crypto.randomUUID()}`, name: input.clientName, phone: "" };
   if (input.phone) {
@@ -466,5 +562,5 @@ export async function createWalkInBooking(input: {
       await repo().insertClient({ ...client, createdAt: new Date().toISOString() });
     }
   }
-  return createBooking({ ...input, client, payment: "in_store", source: "owner" });
+  return createBooking({ ...input, client, payment: "in_store", staff: user });
 }

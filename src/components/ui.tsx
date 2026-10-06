@@ -4,6 +4,7 @@ import {
   IconBrush,
   IconChevronLeft,
   IconChevronRight,
+  IconDots,
   IconDropletHalf2,
   IconRazor,
   IconRazorElectric,
@@ -26,6 +27,7 @@ const SERVICE_ICONS = {
   sparkles: IconSparkles,
   brush: IconBrush,
   spray: IconSpray,
+  dots: IconDots,
 } satisfies Record<ServiceIconName, unknown>;
 
 export function ServiceIcon({ name, className }: { name: ServiceIconName; className?: string }) {
@@ -33,7 +35,15 @@ export function ServiceIcon({ name, className }: { name: ServiceIconName; classN
   return <Icon aria-hidden className={className} size={20} stroke={1.6} />;
 }
 
-const PRO_BG = { "pro-1": "bg-pro-1", "pro-2": "bg-pro-2", "pro-3": "bg-pro-3" } as const;
+/** Clases completas (Tailwind necesita verlas literales para generarlas). */
+export const PRO_BG = {
+  "pro-1": "bg-pro-1",
+  "pro-2": "bg-pro-2",
+  "pro-3": "bg-pro-3",
+  "pro-4": "bg-pro-4",
+  "pro-5": "bg-pro-5",
+  "pro-6": "bg-pro-6",
+} as const;
 
 export function Avatar({ pro, size = "md" }: { pro: Professional | null; size?: "sm" | "md" }) {
   return (

@@ -1,13 +1,13 @@
 import { notFound } from "next/navigation";
 import { IconBrandWhatsapp, IconCircleCheck, IconPhone } from "@tabler/icons-react";
-import { BUSINESS, PROFESSIONAL_BY_ID, SERVICE_BY_ID } from "@/data/catalog";
+import { BUSINESS } from "@/data/catalog";
 import { formatMoney } from "@/domain/money";
 import { formatArMobile } from "@/domain/phone";
 import { depositAmount } from "@/domain/policies";
 import { formatLongDay, formatRelativeDay, formatTime } from "@/domain/time";
-import { ownerCancelBooking, ownerMarkAttended } from "@/server/actions";
+import { staffCancelBooking, staffMarkAttended } from "@/server/actions";
 import { getBookingDetail } from "@/server/bookings";
-import { requireOwner } from "@/server/session";
+import { requireStaff } from "@/server/session";
 import { ConfirmDialog, SubmitButton } from "@/components/forms";
 import { Badge, KeyValueList, Screen, TopBar, buttonVariants } from "@/components/ui";
 import { MarkSeen } from "./mark-seen";
@@ -20,15 +20,16 @@ const STATUS = {
   cancelled: { label: "Cancelado", tone: "danger" },
 } as const;
 
-export default async function BookingDetail({ params, searchParams }: PageProps<"/duena/turnos/[id]">) {
-  await requireOwner();
+export default async function BookingDetail({ params, searchParams }: PageProps<"/panel/turnos/[id]">) {
+  const user = await requireStaff();
   const { id } = await params;
   const justCreated = (await searchParams).nuevo === "1";
-  const detail = await getBookingDetail(id);
+  // Un peluquero que abre un turno ajeno (por URL) ve "no encontrado", sin filtrar datos.
+  const detail = await getBookingDetail(user, id);
   if (!detail) notFound();
 
-  const { booking: b, now, canMarkAttended } = detail;
-  const s = SERVICE_BY_ID.get(b.serviceId)!;
+  const { booking: b, now, catalog, canMarkAttended } = detail;
+  const s = catalog.serviceById.get(b.serviceId)!;
   const deposit = depositAmount(BUSINESS, s);
   const phoneDigits = b.clientPhone.replace(/\D/g, "");
   const status = STATUS[b.status];
@@ -39,7 +40,7 @@ export default async function BookingDetail({ params, searchParams }: PageProps<
   return (
     <Screen>
       {b.unseenByOwner && <MarkSeen id={b.id} />}
-      <TopBar backHref={`/duena?dia=${b.date}`} backLabel="Volver a la agenda" title="Turno" />
+      <TopBar backHref={`/panel?dia=${b.date}`} backLabel="Volver a la agenda" title="Turno" />
       {justCreated && (
         <p
           role="status"
@@ -75,10 +76,11 @@ export default async function BookingDetail({ params, searchParams }: PageProps<
           <KeyValueList
             rows={[
               ["Servicio", s.name],
-              ["Profesional", PROFESSIONAL_BY_ID.get(b.professionalId)?.name ?? ""],
+              ...(b.note ? [["Motivo", b.note] as [string, string]] : []),
+              ["Profesional", catalog.professionalById.get(b.professionalId)?.name ?? ""],
               ["Fecha", formatLongDay(b.date)],
-              ["Horario", `${formatTime(b.start)} a ${formatTime(b.start + s.durationMin)}`],
-              ["Precio", formatMoney(s.priceArs)],
+              ["Horario", `${formatTime(b.start)} a ${formatTime(b.start + b.durationMin)}`],
+              ["Precio", s.variablePrice ? "A convenir" : formatMoney(s.priceArs)],
               [
                 "Pago",
                 b.payment === "deposit"
@@ -91,7 +93,7 @@ export default async function BookingDetail({ params, searchParams }: PageProps<
           {b.status === "confirmed" && (
             <div className="flex flex-col gap-2 px-4 pt-6">
               {canMarkAttended && (
-                <form action={ownerMarkAttended}>
+                <form action={staffMarkAttended}>
                   <input type="hidden" name="bookingId" value={b.id} />
                   <SubmitButton className="w-full" pendingLabel="Guardando…">
                     Marcar como atendido
@@ -110,7 +112,7 @@ export default async function BookingDetail({ params, searchParams }: PageProps<
                   </>
                 }
                 confirmLabel="Sí, cancelar turno"
-                action={ownerCancelBooking}
+                action={staffCancelBooking}
                 hidden={{ bookingId: b.id }}
               />
             </div>

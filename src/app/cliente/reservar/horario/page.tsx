@@ -2,11 +2,12 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ANY_PROFESSIONAL } from "@/domain/types";
 import { dayOfMonth, dayShortName, formatDuration, formatRelativeDay, formatTime } from "@/domain/time";
-import { getAvailability, professionalName, serviceOrNull } from "@/server/bookings";
+import { getAvailability, professionalName, getPublicService } from "@/server/bookings";
 import { requireClient } from "@/server/session";
 import { getClientBookings } from "@/server/bookings";
 import { BottomAction, ButtonLink, H1, Screen, TopBar, WithSidebar, cx } from "@/components/ui";
 import { flowHref, readFlowParams } from "../params";
+import { getCatalog } from "@/server/catalog";
 
 export const metadata = { title: "Elegí día y hora" };
 
@@ -14,9 +15,10 @@ const NOON = 13 * 60;
 
 /** Paso 3 de 4: día y hora. También se usa para reprogramar (`?turno=`). */
 export default async function PickTime({ searchParams }: PageProps<"/cliente/reservar/horario">) {
+  const catalog = await getCatalog();
   const client = await requireClient();
   const params = await readFlowParams(searchParams);
-  const service = serviceOrNull(params.servicio);
+  const service = await getPublicService(params.servicio);
   if (!service) redirect("/cliente/reservar");
   const professional = params.profesional ?? ANY_PROFESSIONAL;
 
@@ -54,7 +56,9 @@ export default async function PickTime({ searchParams }: PageProps<"/cliente/res
       />
       <WithSidebar>
         <main className="pb-4">
-          <H1 sub={`${service.name} · ${formatDuration(service.durationMin)} · ${professionalName(professional)}`}>
+          <H1
+            sub={`${service.name} · ${formatDuration(service.durationMin)} · ${professionalName(catalog, professional)}`}
+          >
             Elegí día y hora
           </H1>
 

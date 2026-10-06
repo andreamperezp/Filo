@@ -50,7 +50,7 @@ export function LiveUpdates({ latest }: { latest: Latest | null }) {
       {toast && (
         <div className="animate-slide-up pointer-events-auto flex w-full max-w-md items-center gap-3 rounded-2xl bg-ink p-3 pr-2 text-bg shadow-lg">
           <IconBell aria-hidden size={20} />
-          <Link href="/duena/actividad" onClick={() => setToast(null)} className="flex-1">
+          <Link href="/panel/actividad" onClick={() => setToast(null)} className="flex-1">
             <span className="block text-sm font-bold">{toast.title}</span>
             <span className="block text-xs opacity-80">{toast.detail}</span>
           </Link>

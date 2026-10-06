@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BUSINESS, SERVICE_BY_ID } from "@/data/catalog";
+import { BUSINESS, SEED_SERVICE_BY_ID as SERVICE_BY_ID } from "@/data/catalog";
 import { firstAvailable, isBusy, planBlockRange, slotsForDay, type AgendaSnapshot } from "./availability";
 import { ANY_PROFESSIONAL, type Booking } from "./types";
 
@@ -19,6 +19,7 @@ function booking(partial: Partial<Booking>): Booking {
     date: MONDAY,
     start: 600,
     serviceId: "barba",
+    durationMin: 30,
     professionalId: "lucas",
     clientId: "c1",
     clientName: "Test",
@@ -35,7 +36,6 @@ const empty: AgendaSnapshot = { bookings: [], blocked: [] };
 const query = (agenda: AgendaSnapshot, overrides: Partial<Parameters<typeof slotsForDay>[0]> = {}) =>
   slotsForDay({
     business: BUSINESS,
-    services: SERVICE_BY_ID,
     agenda,
     now: EARLY,
     service: corte,
@@ -84,10 +84,11 @@ describe("slotsForDay", () => {
     expect(query(agenda).find((s) => s.start === 600)!.assignTo).toBeNull();
   });
 
-  it("con 'cualquiera' asigna al primer profesional libre", () => {
-    const agenda = { bookings: [booking({ start: 600, professionalId: "lucas" })], blocked: [] };
+  it("con 'cualquiera' asigna al primer profesional libre del equipo", () => {
+    // Orden del equipo para "Corte": Romina, Lucas, Sofía.
+    const agenda = { bookings: [booking({ start: 600, professionalId: "romi" })], blocked: [] };
     const slot = query(agenda, { professional: ANY_PROFESSIONAL }).find((s) => s.start === 600)!;
-    expect(slot.assignTo).toBe("sofi");
+    expect(slot.assignTo).toBe("lucas");
   });
 
   it("al reprogramar, el turno no choca consigo mismo", () => {
@@ -97,11 +98,22 @@ describe("slotsForDay", () => {
   });
 });
 
+describe("turnos con duración propia", () => {
+  it("un 'Otro' de 2 h ocupa toda su duración aunque el servicio base dure 30 min", () => {
+    const agenda = { bookings: [booking({ serviceId: "otro", durationMin: 120, start: 600 })], blocked: [] };
+    expect(isBusy(agenda, BUSINESS, "lucas", MONDAY, 690, 30)).toBe(true);
+    expect(isBusy(agenda, BUSINESS, "lucas", MONDAY, 720, 30)).toBe(false);
+  });
+});
+
 describe("isBusy", () => {
   it("detecta superposición parcial con un servicio largo", () => {
-    const agenda = { bookings: [booking({ serviceId: "alisado", professionalId: "romi", start: 600 })], blocked: [] };
-    expect(isBusy(agenda, SERVICE_BY_ID, BUSINESS, "romi", MONDAY, 720, barba.durationMin)).toBe(true);
-    expect(isBusy(agenda, SERVICE_BY_ID, BUSINESS, "romi", MONDAY, 750, barba.durationMin)).toBe(false);
+    const agenda = {
+      bookings: [booking({ serviceId: "alisado", durationMin: 150, professionalId: "romi", start: 600 })],
+      blocked: [],
+    };
+    expect(isBusy(agenda, BUSINESS, "romi", MONDAY, 720, barba.durationMin)).toBe(true);
+    expect(isBusy(agenda, BUSINESS, "romi", MONDAY, 750, barba.durationMin)).toBe(false);
   });
 });
 
@@ -110,7 +122,6 @@ describe("firstAvailable", () => {
     const late = { date: MONDAY, minute: 19 * 60 + 45 };
     const next = firstAvailable({
       business: BUSINESS,
-      services: SERVICE_BY_ID,
       agenda: empty,
       now: late,
       service: corte,
@@ -123,7 +134,7 @@ describe("firstAvailable", () => {
 describe("planBlockRange", () => {
   it("bloquea el rango pedido y deja afuera los horarios con turno", () => {
     const agenda = { bookings: [booking({ start: 600, professionalId: "lucas" })], blocked: [] };
-    const plan = planBlockRange(agenda, SERVICE_BY_ID, BUSINESS, {
+    const plan = planBlockRange(agenda, BUSINESS, {
       date: MONDAY,
       professionalIds: ["lucas"],
       from: 540,
@@ -134,7 +145,7 @@ describe("planBlockRange", () => {
   });
 
   it("el día completo para varios profesionales usa el horario del local", () => {
-    const plan = planBlockRange(empty, SERVICE_BY_ID, BUSINESS, {
+    const plan = planBlockRange(empty, BUSINESS, {
       date: SATURDAY,
       professionalIds: ["lucas", "sofi"],
       from: 0,
@@ -145,8 +156,7 @@ describe("planBlockRange", () => {
 
   it("no hay nada que bloquear un domingo", () => {
     expect(
-      planBlockRange(empty, SERVICE_BY_ID, BUSINESS, { date: SUNDAY, professionalIds: ["lucas"], from: 0, to: 1440 })
-        .slots,
+      planBlockRange(empty, BUSINESS, { date: SUNDAY, professionalIds: ["lucas"], from: 0, to: 1440 }).slots,
     ).toEqual([]);
   });
 });

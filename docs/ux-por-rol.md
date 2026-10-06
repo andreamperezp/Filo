@@ -1,6 +1,6 @@
 # Buenas prácticas de UX por rol
 
-Cliente y dueña usan la app en contextos muy distintos, así que cada
+Clientas, peluqueros y superadmin usan la app en contextos muy distintos, así que cada
 interfaz está pensada para su situación. Este documento explica qué
 práctica se aplicó, por qué y dónde está en el código.
 
@@ -122,7 +122,9 @@ horarios este día. Probá otro." guía al siguiente paso.
 
 ---
 
-## Dueña · "entre cliente y cliente, con las manos ocupadas"
+## Equipo (dueña y peluqueros) · "entre cliente y cliente, con las manos ocupadas"
+
+> Todo lo de esta sección aplica a ambos roles del equipo; más abajo se detalla qué cambia para cada uno.
 
 **Contexto:** usa la app todos los días, en mostrador, en el celular, en
 ratos de 10 segundos entre un corte y otro. Necesita **leer rápido**
@@ -133,7 +135,7 @@ y actuar sobre excepciones (nuevas reservas, cancelaciones, huecos).
 
 La pantalla inicial es **hoy**, en orden cronológico, con hora de inicio y
 fin, cliente, servicio, profesional y estado de pago. No hay dashboards
-intermedios. → `app/duena/page.tsx`.
+intermedios. → `app/panel/page.tsx`.
 
 ### 2. Escaneo visual rápido
 
@@ -154,13 +156,13 @@ intermedios. → `app/duena/page.tsx`.
 - **Badge** con cantidad sin leer en la pestaña.
 - **Toast en vivo** cuando entra una reserva, sin recargar; tocarlo lleva a Actividad.
 - La agenda se refresca sola cada 15 s y al volver a la pestaña.
-  → `app/duena/live-updates.tsx`, `owner-tabs.tsx`, `actividad/page.tsx`.
+  → `app/panel/live-updates.tsx`, `layout.tsx`, `actividad/page.tsx`.
 
 ### 5. Acción directa sobre el cliente
 
 En el detalle del turno, **WhatsApp** (con mensaje precargado con nombre, día y
 hora) y **Llamar** están arriba, a un toque: es el canal real del negocio.
-→ `app/duena/turnos/[id]/page.tsx`.
+→ `app/panel/turnos/[id]/page.tsx`.
 
 ### 6. Acciones seguras
 
@@ -173,7 +175,7 @@ hora) y **Llamar** están arriba, a un toque: es el canal real del negocio.
 "No disponible" para el día, la mañana, la tarde o un rango, para una persona o
 todo el equipo, en vez de bloquear horario por horario. Se protege lo existente:
 los horarios con turno no se tocan y el mensaje dice cuántos son, para decidir si
-avisar a esas clientas. → `app/duena/availability-panel.tsx`, `domain/availability.ts` (`planBlockRange`).
+avisar a esas clientas. → `app/panel/availability-panel.tsx`, `domain/availability.ts` (`planBlockRange`).
 
 ### 8. Turno rápido: velocidad en el mostrador
 
@@ -182,7 +184,7 @@ avisar a esas clientas. → `app/duena/availability-panel.tsx`, `domain/availabi
 - Casi todo con toques (radios con forma de tarjeta, accesibles por teclado); el único texto obligatorio es el nombre.
 - Si una combinación no tiene lugar, se ofrece el próximo día disponible en un toque.
 - El celular es opcional, pero si se carga el turno queda en la cuenta de la clienta.
-  → `app/duena/nuevo/*`.
+  → `app/panel/nuevo/*`.
 
 ### 9. Densidad adecuada
 
@@ -191,13 +193,47 @@ tablet en el mostrador, sin perder la usabilidad en celular.
 
 ---
 
+## Peluquero/a · "lo mío, sin ruido"
+
+**Contexto:** usa su celular personal o la tablet del local; le importa _su_
+día, no el de los demás. **Métrica clave:** turnos gestionados sin pedirle nada a la dueña.
+
+- **Solo lo suyo**: la agenda abre directo en su grilla ("Buen día, Lucas · tu agenda"), sin filtros de otros profesionales ni pestaña "Equipo". Menos opciones, menos errores (_ley de Hick_).
+- **Autonomía**: marca sus francos y horarios no disponibles, y agenda turnos rápidos para sí, sin depender de la dueña.
+- **Actividad propia**: ve solo reservas y cancelaciones de sus turnos, con su propio "sin leer" (que la dueña lea algo no lo marca como leído para él).
+- **Primer ingreso guiado**: entra con la contraseña temporal y la app lo lleva a elegir la suya antes de nada, con reglas claras ("al menos 10 caracteres; mejor una frase") y botón "Mostrar".
+- **Seguridad sin fricción**: si intenta abrir un turno ajeno por URL ve "no encontrado" (no se filtran datos de clientas de otros).
+
+→ `server/session.ts` (`staffScope`), `server/bookings.ts`, `app/(ingreso)/equipo/clave`.
+
+## Superadmin · "el local completo y el equipo"
+
+- **Vista central**: la agenda de todo el equipo en columnas, filtros por profesional y "Marcar disponibilidad" para todo el equipo de una vez (feriados, cierre por evento).
+- **Alta en un paso**: nombre, email, rol, especialidad y servicios en un solo formulario. Al crearla, la persona aparece en la reserva de clientes con su color.
+- **Credenciales una sola vez**: la contraseña temporal se muestra con botón "Copiar" y el aviso de que no se vuelve a ver (no se guarda en texto).
+- **Bajas reversibles y seguras**: "Desactivar" pide confirmación, explica qué pasa (no entra, no recibe turnos nuevos, sus turnos siguen) y cuántos turnos próximos tiene. "Reactivar" en un toque. No puede desactivarse a sí misma.
+- **Estados visibles**: insignias "Superadmin", "Desactivada", "Falta su primer ingreso".
+
+→ `app/panel/equipo/*`, `server/team.ts`.
+
+## Turno rápido: calendario y "Otro"
+
+- **Calendario mensual** en vez de una tira de días: se ve la semana completa y hasta 45 días, con **cuántos horarios libres** tiene cada día y un punto de color (mucho / poco lugar). Días cerrados, completos o fuera del período, deshabilitados.
+- **Accesible**: cada día anuncia "Jueves 8 de octubre: 12 horarios libres"; se navega con flechas (días y semanas) y un solo día recibe el foco a la vez.
+- **Los horarios se piden al elegir el día** (y quedan en memoria): la página carga rápido aunque abarque 45 días.
+- **"Otro"** para lo que no está en la lista: chips de duración (30 min a 3 h) y motivo opcional, que después se ve en la agenda y en el detalle ("Otro · Prueba de peinado"). Precio "a convenir".
+
+→ `components/day-calendar.tsx`, `app/panel/nuevo/*`.
+
+---
+
 ## Cómo validar (próximos pasos)
 
-| Qué medir                 | Cómo                                                                                               |
-| ------------------------- | -------------------------------------------------------------------------------------------------- |
-| Tiempo a turno confirmado | Evento de analítica en cada paso del flujo (embudo).                                               |
-| Abandono por paso         | Mismo embudo: dónde se van.                                                                        |
-| Ausencias                 | % de turnos sin "atendido" antes y después de los recordatorios.                                   |
-| Huecos recuperados        | Turnos reservados en horarios liberados por cancelaciones.                                         |
-| Usabilidad                | 5 tests de guerrilla con clientes reales en el local + una sesión observando a la dueña un sábado. |
-| Accesibilidad             | axe DevTools + prueba con VoiceOver/TalkBack en cada release.                                      |
+| Qué medir                 | Cómo                                                                                                                |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| Tiempo a turno confirmado | Evento de analítica en cada paso del flujo (embudo).                                                                |
+| Abandono por paso         | Mismo embudo: dónde se van.                                                                                         |
+| Ausencias                 | % de turnos sin "atendido" antes y después de los recordatorios.                                                    |
+| Huecos recuperados        | Turnos reservados en horarios liberados por cancelaciones.                                                          |
+| Usabilidad                | 5 tests de guerrilla con clientes reales en el local + una sesión observando a la dueña y a un peluquero un sábado. |
+| Accesibilidad             | axe DevTools + prueba con VoiceOver/TalkBack en cada release.                                                       |
