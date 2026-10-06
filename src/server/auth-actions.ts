@@ -26,17 +26,21 @@ export async function requestCode(_prev: AuthState, form: FormData): Promise<Aut
     return { error: "Revisá el número: código de área + número, por ejemplo 11 5523-8841.", values: { phone: raw } };
   }
 
-  // Si ya hay un código vigente (pidió hace < 30 s), no se reenvía: se sigue con ese.
-  issueCode(phone);
-  await setPendingLogin({ phone, step: "code" });
+  // Si ya hay un código vigente para ese número (pidió hace < 30 s), se sigue con ese.
+  const pending = await getPendingLogin();
+  const previous = pending?.phone === phone ? pending.otp : undefined;
+  const issued = issueCode(phone, previous);
+  await setPendingLogin({ phone, step: "code", otp: issued.ok ? issued.state : previous });
   redirect("/ingresar/codigo");
 }
 
 export async function resendCode(): Promise<AuthState> {
   const pending = await getPendingLogin();
   if (!pending) redirect("/");
-  const issued = issueCode(pending.phone);
-  return issued.ok ? { error: null } : { error: `Esperá ${issued.retryInSeconds} s para pedir otro código.` };
+  const issued = issueCode(pending.phone, pending.otp);
+  if (!issued.ok) return { error: `Esperá ${issued.retryInSeconds} s para pedir otro código.` };
+  await setPendingLogin({ ...pending, otp: issued.state });
+  return { error: null };
 }
 
 const codeSchema = z.string().regex(/^\d{6}$/);
@@ -48,7 +52,8 @@ export async function confirmCode(_prev: AuthState, form: FormData): Promise<Aut
   const code = field(form, "code").replace(/\D/g, "");
   if (!codeSchema.safeParse(code).success) return { error: "El código tiene 6 números.", values: { code } };
 
-  const result = verifyCode(pending.phone, code);
+  const { result, state } = verifyCode(pending.phone, code, pending.otp);
+  if (state) await setPendingLogin({ ...pending, otp: state });
   if (result === "expired") return { error: "El código venció. Pedí uno nuevo." };
   if (result === "locked") return { error: "Demasiados intentos. Pedí un código nuevo." };
   if (result === "invalid")
@@ -56,7 +61,7 @@ export async function confirmCode(_prev: AuthState, form: FormData): Promise<Aut
 
   const client = await getMemoryRepository().findClientByPhone(pending.phone);
   if (client) {
-    await startSession("client", client.id);
+    await startSession("client", client.id, { name: client.name, phone: client.phone });
     redirect("/cliente");
   }
   // Primera vez: falta saber cómo se llama.
@@ -84,7 +89,7 @@ export async function completeProfile(_prev: AuthState, form: FormData): Promise
   if (!existing) {
     await repo.insertClient({ id, name: parsed.data, phone: pending.phone, createdAt: new Date().toISOString() });
   }
-  await startSession("client", id);
+  await startSession("client", id, { name: existing?.name ?? parsed.data, phone: pending.phone });
   redirect("/cliente");
 }
 

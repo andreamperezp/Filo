@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { formatArMobile } from "@/domain/phone";
 import { changePhone } from "@/server/auth-actions";
-import { devCodeFor, secondsUntilResend } from "@/server/one-time-code";
+import { demoCodeOf, secondsUntilResend } from "@/server/one-time-code";
 import { getPendingLogin } from "@/server/session";
 import { AuthShell } from "../../auth-shell";
 import { CodeForm } from "../../forms";
@@ -12,7 +12,7 @@ export default async function EnterCode() {
   const pending = await getPendingLogin();
   if (pending?.step !== "code") redirect("/");
 
-  const devCode = devCodeFor(pending.phone);
+  const devCode = demoCodeOf(pending.otp);
 
   return (
     <AuthShell
@@ -36,7 +36,7 @@ export default async function EnterCode() {
           <strong className="font-mono text-base tracking-widest text-merino">{devCode}</strong>
         </p>
       )}
-      <CodeForm resendIn={secondsUntilResend(pending.phone)} />
+      <CodeForm resendIn={secondsUntilResend(pending.otp)} />
     </AuthShell>
   );
 }

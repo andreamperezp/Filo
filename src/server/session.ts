@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { getMemoryRepository } from "@/data/memory-repository";
 import type { StaffRole } from "@/domain/types";
+import type { CodeState } from "./one-time-code";
 import { isProduction } from "./env";
 import { seal, unseal } from "./signed-cookie";
 
@@ -19,6 +20,8 @@ const LOGIN_TTL = 60 * 15;
 interface SessionPayload {
   role: Role;
   sub: string;
+  /** Datos mínimos del cliente para recrear su ficha si la instancia no la tiene (ver getSession). */
+  profile?: { name: string; phone: string };
 }
 
 export interface ClientUser {
@@ -71,7 +74,14 @@ export async function getSession(): Promise<Session | null> {
     };
   }
 
-  const client = await repo.getClient(payload.sub);
+  let client = await repo.getClient(payload.sub);
+  if (!client && payload.profile) {
+    // Sin base de datos, cada instancia del servidor tiene su propia memoria: si esta no
+    // conoce al cliente (se registró en otra), se recrea desde la sesión firmada.
+    // Con Supabase (fase 2) esto deja de hacer falta.
+    client = { id: payload.sub, ...payload.profile, createdAt: new Date().toISOString() };
+    await repo.insertClient(client);
+  }
   if (!client) return null;
   return {
     role: "client",
@@ -79,11 +89,11 @@ export async function getSession(): Promise<Session | null> {
   };
 }
 
-export async function startSession(role: Role, userId: string) {
+export async function startSession(role: Role, userId: string, profile?: SessionPayload["profile"]) {
   const jar = await cookies();
   jar.set(
     SESSION_COOKIE,
-    seal<SessionPayload>({ role, sub: userId }, SESSION_TTL[role]),
+    seal<SessionPayload>({ role, sub: userId, profile }, SESSION_TTL[role]),
     cookieOptions(SESSION_TTL[role]),
   );
   jar.delete(LOGIN_COOKIE);
@@ -140,6 +150,8 @@ export interface PendingLogin {
   phone: string;
   /** `code`: falta ingresar el código · `profile`: código ok, falta el nombre (cliente nuevo). */
   step: "code" | "profile";
+  /** Código vigente (hash, vencimiento, intentos): viaja firmado, no en memoria del servidor. */
+  otp?: CodeState;
 }
 
 export async function getPendingLogin(): Promise<PendingLogin | null> {
