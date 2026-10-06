@@ -14,6 +14,7 @@ import {
 } from "@tabler/icons-react";
 import { signOut } from "@/server/auth-actions";
 import { LogoMark } from "./logo";
+import { ThemeToggle } from "./theme-toggle";
 import { cx } from "./ui";
 
 // Los íconos se resuelven acá: un Server Component no puede pasar funciones a un Client Component.
@@ -108,7 +109,8 @@ export function AppShell({
             </ul>
           </nav>
 
-          <div className="ml-auto flex items-center gap-2">
+          <div className="ml-auto flex items-center gap-1 md:gap-2">
+            <ThemeToggle />
             {action && (
               <Link
                 href={action.href}

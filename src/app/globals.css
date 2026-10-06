@@ -13,57 +13,54 @@
   --venice: #16587b;
   --venice-deep: #0d3b55;
 
-  /* Semánticos · tema claro */
-  --bg: #f5eedd; /* Merino */
-  --surface: #fcf8ef;
-  --surface-2: #ece2cb;
-  --ink: #0d3b55; /* Venice profundo: 9.6:1 sobre Merino */
-  --muted: #4e6878; /* 5.1:1 sobre Merino */
-  --line: #ded3ba;
-  --primary: #16587b; /* Venice Blue: 6.6:1 con Merino */
-  --on-primary: #f5eedd;
-  --accent-soft: #dce9f0; /* Rock Blue aclarado */
-  --on-accent-soft: #0d3b55;
-  --danger: #a63a2b;
-  --on-danger: #fff6f2;
-  --danger-soft: #f4dcd5;
-  --ok-soft: #dce8dd;
-  --on-ok: #2a4a33;
-  --pro-1: #c0673a;
-  --pro-2: #2e7d6b;
-  --pro-3: #7b5ea7;
-  --pro-4: #a8577e;
-  --pro-5: #5f7a2e;
-  --pro-6: #3f6fb0;
-  --av-ink: #fffaf0;
+  /* Semánticos: light-dark(claro, oscuro). El navegador elige según `color-scheme`. */
+  --bg: light-dark(#f5eedd, #0b2638); /* Merino */
+  --surface: light-dark(#fcf8ef, #10344b);
+  --surface-2: light-dark(#ece2cb, #174560);
+  --ink: light-dark(#0d3b55, #f5eedd); /* Venice profundo: 9.6:1 sobre Merino */
+  --muted: light-dark(#4e6878, #a8c4d6); /* 5.1:1 sobre Merino */
+  --line: light-dark(#ded3ba, #22506b);
+  --primary: light-dark(#16587b, #84b3ce); /* Venice Blue: 6.6:1 con Merino */
+  --on-primary: light-dark(#f5eedd, #0b2638);
+  --accent-soft: light-dark(#dce9f0, #1b4d69); /* Rock Blue aclarado */
+  --on-accent-soft: light-dark(#0d3b55, #d9e9f2);
+  --danger: light-dark(#a63a2b, #ff8f7a);
+  --on-danger: light-dark(#fff6f2, #2a0e0a);
+  --danger-soft: light-dark(#f4dcd5, #3b2526);
+  --ok-soft: light-dark(#dce8dd, #1f4236);
+  --on-ok: light-dark(#2a4a33, #c3e6cf);
+  --pro-1: light-dark(#c0673a, #f0a074);
+  --pro-2: light-dark(#2e7d6b, #7fd0b6);
+  --pro-3: light-dark(#7b5ea7, #c4adeb);
+  --pro-4: light-dark(#a8577e, #f0a3c4);
+  --pro-5: light-dark(#5f7a2e, #c3dd8a);
+  --pro-6: light-dark(#3f6fb0, #9cc3f5);
+  --av-ink: light-dark(#fffaf0, #0b2638);
+
+  /* Por defecto sigue al dispositivo; el selector de tema lo fija con data-theme. */
+  color-scheme: light dark;
+}
+
+:root[data-theme="light"] {
   color-scheme: light;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #0b2638;
-    --surface: #10344b;
-    --surface-2: #174560;
-    --ink: #f5eedd;
-    --muted: #a8c4d6;
-    --line: #22506b;
-    --primary: #84b3ce; /* Rock Blue: 7:1 sobre el fondo */
-    --on-primary: #0b2638;
-    --accent-soft: #1b4d69;
-    --on-accent-soft: #d9e9f2;
-    --danger: #ff8f7a;
-    --on-danger: #2a0e0a;
-    --danger-soft: #3b2526;
-    --ok-soft: #1f4236;
-    --on-ok: #c3e6cf;
-    --pro-1: #f0a074;
-    --pro-2: #7fd0b6;
-    --pro-3: #c4adeb;
-    --pro-4: #f0a3c4;
-    --pro-5: #c3dd8a;
-    --pro-6: #9cc3f5;
-    --av-ink: #0b2638;
-    color-scheme: dark;
+:root[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+/*
+ * Variante "dark:" de Tailwind alineada con el selector de tema: aplica si se
+ * eligió oscuro, o si el dispositivo está en oscuro y no se eligió claro.
+ */
+@custom-variant dark {
+  &:where([data-theme="dark"], [data-theme="dark"] *) {
+    @slot;
+  }
+  @media (prefers-color-scheme: dark) {
+    &:where(:root:not([data-theme="light"]), :root:not([data-theme="light"]) *) {
+      @slot;
+    }
   }
 }
 

@@ -28,6 +28,8 @@ original (`src/components/logo.tsx`). Usa el color del texto que lo rodea, así
 funciona en Venice sobre Merino, en Merino sobre Venice y en modo oscuro. El
 favicon (`src/app/icon.svg`) es el mismo isotipo.
 
+**Tema claro / oscuro:** por defecto sigue al dispositivo; el botón ☀️/🌙 de la cabecera lo fija y se recuerda (cookie), sin parpadeo al cargar. Los colores se definen una sola vez con `light-dark()` en `globals.css`.
+
 Tipografías: **Fraunces** (títulos, peso 800 con ejes `SOFT` y `WONK` para el aire
 setentoso de la referencia) y **Outfit** (texto e interfaz).
 
