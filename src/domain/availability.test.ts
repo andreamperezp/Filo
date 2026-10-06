@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { BUSINESS, SERVICE_BY_ID } from "@/data/catalog";
-import { firstAvailable, isBusy, slotsForDay, type AgendaSnapshot } from "./availability";
+import { firstAvailable, isBusy, planBlockRange, slotsForDay, type AgendaSnapshot } from "./availability";
 import { ANY_PROFESSIONAL, type Booking } from "./types";
 
 // 2026-10-05 es lunes; 2026-10-10 sábado; 2026-10-11 domingo.
@@ -117,5 +117,36 @@ describe("firstAvailable", () => {
       professional: "lucas",
     });
     expect(next).toEqual({ date: "2026-10-06", start: 540, assignTo: "lucas" });
+  });
+});
+
+describe("planBlockRange", () => {
+  it("bloquea el rango pedido y deja afuera los horarios con turno", () => {
+    const agenda = { bookings: [booking({ start: 600, professionalId: "lucas" })], blocked: [] };
+    const plan = planBlockRange(agenda, SERVICE_BY_ID, BUSINESS, {
+      date: MONDAY,
+      professionalIds: ["lucas"],
+      from: 540,
+      to: 660,
+    });
+    expect(plan.slots.map((s) => s.start)).toEqual([540, 570, 630]);
+    expect(plan.busy.map((s) => s.start)).toEqual([600]);
+  });
+
+  it("el día completo para varios profesionales usa el horario del local", () => {
+    const plan = planBlockRange(empty, SERVICE_BY_ID, BUSINESS, {
+      date: SATURDAY,
+      professionalIds: ["lucas", "sofi"],
+      from: 0,
+      to: 1440,
+    });
+    expect(plan.slots).toHaveLength(2 * 10); // sábado de 9 a 14 h = 10 horarios de 30 min
+  });
+
+  it("no hay nada que bloquear un domingo", () => {
+    expect(
+      planBlockRange(empty, SERVICE_BY_ID, BUSINESS, { date: SUNDAY, professionalIds: ["lucas"], from: 0, to: 1440 })
+        .slots,
+    ).toEqual([]);
   });
 });

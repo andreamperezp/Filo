@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { normalizeArMobile } from "@/domain/phone";
 import { isIsoDate } from "@/domain/time";
 import { ANY_PROFESSIONAL } from "@/domain/types";
 import { PROFESSIONAL_BY_ID, SERVICE_BY_ID } from "@/data/catalog";
@@ -122,4 +123,72 @@ export async function ownerMarkActivityRead() {
   await requireOwner();
   await bookings.markActivityRead();
   revalidatePath("/duena", "layout");
+}
+
+const ALL_PROFESSIONALS = "todos";
+
+const rangeSchema = z.object({
+  date: isoDate,
+  professionalId: z
+    .string()
+    .refine((v) => v === ALL_PROFESSIONALS || PROFESSIONAL_BY_ID.has(v), "Profesional inválido"),
+  from: minute,
+  to: z.coerce.number().int().min(1).max(1440),
+  mode: z.enum(["block", "unblock"]),
+});
+
+export type RangeState = { error: string | null; message?: string };
+
+/** Marcar no disponible / disponible un rango o el día completo (uno o todos los profesionales). */
+export async function ownerSetRange(_prev: RangeState, form: FormData): Promise<RangeState> {
+  await requireOwner();
+  const input = parse(rangeSchema, form);
+  if (!input.success) return { error: "Revisá el día y las horas." };
+
+  const { date, professionalId, from, to, mode } = input.data;
+  const professionalIds = professionalId === ALL_PROFESSIONALS ? [...PROFESSIONAL_BY_ID.keys()] : [professionalId];
+  const result = await bookings.setRangeBlocked({ date, professionalIds, from, to, blocked: mode === "block" });
+  if (!result.ok) return { error: result.error };
+
+  revalidatePath("/", "layout");
+  const { changed, busy } = result.value;
+  if (mode === "unblock") {
+    return {
+      error: null,
+      message: changed
+        ? `Listo: ${changed} horarios vuelven a estar disponibles.`
+        : "No había horarios bloqueados en ese rango.",
+    };
+  }
+  const busyNote = busy ? ` ${busy} estaban ocupados por turnos y quedaron como estaban.` : "";
+  return { error: null, message: `Listo: ${changed} horarios marcados como no disponibles.${busyNote}` };
+}
+
+const walkInSchema = z.object({
+  clientName: z.string().trim().min(2, "Escribí el nombre de la clienta.").max(60),
+  phone: z.string().trim().max(30).optional(),
+  serviceId: z.string().refine((v) => SERVICE_BY_ID.has(v), "Elegí un servicio."),
+  professional: professionalChoice,
+  date: isoDate,
+  start: minute,
+});
+
+export type WalkInState = { error: string | null; values?: Record<string, string> };
+
+export async function ownerQuickBooking(_prev: WalkInState, form: FormData): Promise<WalkInState> {
+  await requireOwner();
+  const values = Object.fromEntries([...form.entries()].map(([k, v]) => [k, String(v)]));
+  if (!form.get("start")) return { error: "Elegí un horario disponible.", values };
+  const input = parse(walkInSchema, form);
+  if (!input.success) return { error: input.error.issues[0].message ?? "Revisá los datos.", values };
+
+  const rawPhone = input.data.phone ?? "";
+  const phone = rawPhone ? normalizeArMobile(rawPhone) : null;
+  if (rawPhone && !phone) return { error: "Revisá el celular: código de área + número (ej. 11 5523-8841).", values };
+
+  const result = await bookings.createWalkInBooking({ ...input.data, phone });
+  if (!result.ok) return { error: result.error, values };
+
+  revalidatePath("/", "layout");
+  redirect(`/duena/turnos/${result.value.id}?nuevo=1`);
 }

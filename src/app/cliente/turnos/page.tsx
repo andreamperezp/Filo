@@ -6,7 +6,6 @@ import { requireClient } from "@/server/session";
 import { ConfirmDialog } from "@/components/forms";
 import { Badge, ButtonLink, H1, Screen, SectionTitle } from "@/components/ui";
 import { flowHref } from "../reservar/params";
-import { ClientTabs } from "../client-tabs";
 
 export const metadata = { title: "Mis turnos" };
 
@@ -24,14 +23,14 @@ export default async function MyBookings() {
 
         <SectionTitle id="upcoming">Próximos</SectionTitle>
         {upcoming.length === 0 ? (
-          <div className="mx-4 rounded-2xl border border-dashed border-line p-6 text-center">
+          <div className="mx-4 rounded-2xl border border-dashed border-line p-6 text-center md:max-w-md md:p-10">
             <p className="text-muted">No tenés turnos reservados.</p>
             <ButtonLink href="/cliente/reservar" className="mt-4">
               Reservar turno
             </ButtonLink>
           </div>
         ) : (
-          <ul aria-labelledby="upcoming" className="flex flex-col gap-3 px-4">
+          <ul aria-labelledby="upcoming" className="grid gap-3 px-4 md:grid-cols-2">
             {upcoming.map((b) => {
               const service = SERVICE_BY_ID.get(b.serviceId)!;
               const pro = PROFESSIONAL_BY_ID.get(b.professionalId)!;
@@ -94,7 +93,10 @@ export default async function MyBookings() {
         {past.length > 0 && (
           <>
             <SectionTitle id="past">Anteriores</SectionTitle>
-            <ul aria-labelledby="past" className="mx-4 divide-y divide-line rounded-2xl border border-line bg-surface">
+            <ul
+              aria-labelledby="past"
+              className="mx-4 divide-y divide-line rounded-2xl border border-line bg-surface md:max-w-2xl"
+            >
               {past.map((b) => {
                 const service = SERVICE_BY_ID.get(b.serviceId)!;
                 const pro = PROFESSIONAL_BY_ID.get(b.professionalId)!;
@@ -128,7 +130,6 @@ export default async function MyBookings() {
           </>
         )}
       </main>
-      <ClientTabs />
     </Screen>
   );
 }

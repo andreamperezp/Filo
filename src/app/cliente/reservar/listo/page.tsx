@@ -16,7 +16,7 @@ export default async function Done({ searchParams }: PageProps<"/cliente/reserva
   if (!booking) redirect("/cliente/turnos");
 
   return (
-    <Screen>
+    <Screen width="narrow">
       <main className="flex flex-1 flex-col items-center justify-center px-6 text-center">
         <span className="animate-slide-up grid size-20 place-items-center rounded-full bg-primary text-on-primary">
           <IconCheck aria-hidden size={40} stroke={2.4} />

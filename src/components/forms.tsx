@@ -14,17 +14,31 @@ export function SubmitButton({
   pendingLabel = "Un momento…",
   variant = "primary",
   className,
+  name,
+  value,
 }: {
   children: ReactNode;
   pendingLabel?: string;
   variant?: Variant;
   className?: string;
+  /** Para formularios con más de una acción (ej. "No disponible" / "Disponible"). */
+  name?: string;
+  value?: string;
 }) {
-  const { pending } = useFormStatus();
+  const { pending, data } = useFormStatus();
+  // Con varios botones, solo el que se tocó muestra el spinner; todos se deshabilitan.
+  const mine = pending && (!name || data?.get(name) === value);
   return (
-    <button type="submit" disabled={pending} aria-disabled={pending} className={cx(buttonVariants[variant], className)}>
-      {pending && <IconLoader2 aria-hidden size={18} className="animate-spin" />}
-      {pending ? pendingLabel : children}
+    <button
+      type="submit"
+      name={name}
+      value={value}
+      disabled={pending}
+      aria-disabled={pending}
+      className={cx(buttonVariants[variant], className)}
+    >
+      {mine && <IconLoader2 aria-hidden size={18} className="animate-spin" />}
+      {mine ? pendingLabel : children}
     </button>
   );
 }

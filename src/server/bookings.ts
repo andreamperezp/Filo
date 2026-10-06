@@ -6,6 +6,7 @@ import {
   firstAvailable,
   freeSlotCount,
   isBusy,
+  planBlockRange,
   isClosed,
   dayGrid,
   slotsForDay,
@@ -199,7 +200,13 @@ export type CommandResult<T = undefined> = { ok: true; value: T } | { ok: false;
 
 const fail = (error: string) => ({ ok: false, error }) as const;
 
-async function logActivity(kind: "created" | "cancelled" | "rescheduled", booking: Booking, title: string, now: Now) {
+async function logActivity(
+  kind: "created" | "cancelled" | "rescheduled",
+  booking: Booking,
+  title: string,
+  now: Now,
+  read = false,
+) {
   await repo().insertActivity({
     id: crypto.randomUUID(),
     kind,
@@ -207,7 +214,7 @@ async function logActivity(kind: "created" | "cancelled" | "rescheduled", bookin
     title,
     detail: `${describeWhen(booking, now.date)} · ${PROFESSIONAL_BY_ID.get(booking.professionalId)?.name}`,
     at: new Date().toISOString(),
-    read: false,
+    read,
   });
 }
 
@@ -244,6 +251,8 @@ export async function createBooking(input: {
   date: IsoDate;
   start: MinuteOfDay;
   payment: PaymentMethod;
+  /** Quién lo agenda. Si lo carga la dueña, no aparece como "Nuevo" ni genera aviso. */
+  source?: "client" | "owner";
 }): Promise<CommandResult<Booking>> {
   const service = serviceOrNull(input.serviceId);
   if (!service) return fail("El servicio no existe.");
@@ -268,11 +277,15 @@ export async function createBooking(input: {
       clientPhone: input.client.phone,
       payment: input.payment,
       status: "confirmed",
-      unseenByOwner: true,
+      unseenByOwner: input.source !== "owner",
       createdAt: new Date().toISOString(),
     };
     await repo().insertBooking(booking);
-    await logActivity("created", booking, `${booking.clientName} reservó ${service.name}`, now);
+    if (input.source === "owner") {
+      await logActivity("created", booking, `Agendaste a ${booking.clientName} · ${service.name}`, now, true);
+    } else {
+      await logActivity("created", booking, `${booking.clientName} reservó ${service.name}`, now);
+    }
     return { ok: true, value: booking } as const;
   });
 }
@@ -377,4 +390,81 @@ export async function toggleBlockedSlot(slot: { date: IsoDate; professionalId: s
 
 export async function markActivityRead() {
   await repo().markAllActivityRead();
+}
+
+/* ───────────── Dueña: disponibilidad y turno rápido ───────────── */
+
+export async function setRangeBlocked(input: {
+  date: IsoDate;
+  professionalIds: string[];
+  from: MinuteOfDay;
+  to: MinuteOfDay;
+  blocked: boolean;
+}): Promise<CommandResult<{ changed: number; busy: number }>> {
+  if (input.from >= input.to) return fail("La hora de fin tiene que ser posterior a la de inicio.");
+  return repo().transaction(async () => {
+    if (!input.blocked) {
+      const changed = await repo().unblockRange(input);
+      return { ok: true, value: { changed, busy: 0 } } as const;
+    }
+    const now = nowIn(BUSINESS.timeZone);
+    const plan = planBlockRange(await agendaFor(now.date), SERVICE_BY_ID, BUSINESS, input);
+    await repo().blockSlots(plan.slots);
+    return { ok: true, value: { changed: plan.slots.length, busy: plan.busy.length } } as const;
+  });
+}
+
+/**
+ * Datos para "Turno rápido": todos los horarios libres de los próximos 14 días
+ * para cada combinación servicio + profesional. Se calculan una vez en el
+ * servidor para que el formulario responda al instante mientras la dueña
+ * atiende (sin esperar la red en cada cambio).
+ */
+export async function getQuickBookingOptions() {
+  const now = await currentNow();
+  const agenda = await agendaFor(now.date);
+  const days = bookingWindow(BUSINESS, now.date).filter((d) => !isClosed(BUSINESS, d));
+  const free: Record<string, Array<[MinuteOfDay, string]>> = {};
+  for (const service of SERVICE_BY_ID.values()) {
+    for (const professional of [ANY_PROFESSIONAL, ...service.professionalIds] as ProfessionalChoice[]) {
+      for (const date of days) {
+        const slots = slotsForDay({
+          business: BUSINESS,
+          services: SERVICE_BY_ID,
+          agenda,
+          now,
+          service,
+          professional,
+          date,
+        })
+          .filter((s) => s.assignTo)
+          .map((s) => [s.start, s.assignTo!] as [MinuteOfDay, string]);
+        if (slots.length) free[`${service.id}|${professional}|${date}`] = slots;
+      }
+    }
+  }
+  return { now, days, free };
+}
+
+/** Turno cargado por la dueña (clienta en el local o por teléfono). */
+export async function createWalkInBooking(input: {
+  clientName: string;
+  phone: string | null;
+  serviceId: string;
+  professional: ProfessionalChoice;
+  date: IsoDate;
+  start: MinuteOfDay;
+}): Promise<CommandResult<Booking>> {
+  // Con celular, el turno queda asociado a su cuenta: si después entra a Filo, lo ve en "Mis turnos".
+  let client = { id: `walk-in-${crypto.randomUUID()}`, name: input.clientName, phone: "" };
+  if (input.phone) {
+    const existing = await repo().findClientByPhone(input.phone);
+    if (existing) {
+      client = { id: existing.id, name: existing.name, phone: existing.phone };
+    } else {
+      client = { id: crypto.randomUUID(), name: input.clientName, phone: input.phone };
+      await repo().insertClient({ ...client, createdAt: new Date().toISOString() });
+    }
+  }
+  return createBooking({ ...input, client, payment: "in_store", source: "owner" });
 }

@@ -6,6 +6,23 @@ práctica se aplicó, por qué y dónde está en el código.
 
 ---
 
+## Responsive: un link, tres pantallas
+
+La app se comparte como URL y se abre en celular, tablet (mostrador) o
+computadora. Principios aplicados:
+
+- **Mobile-first**: se diseña primero para 375 px y se agrega espacio, no al revés.
+- **Navegación según el dispositivo**: abajo en celular (pulgar), arriba en tablet/escritorio (convención web). Mismas pestañas y nombres en todos los tamaños.
+- **Ancho de lectura**: el contenido se limita (≈ 1024–1280 px) para no tener líneas ni grillas gigantes en monitores anchos.
+- **Más contexto en pantallas grandes**: 14 días visibles, columnas por profesional, resumen lateral fijo al elegir horario.
+- **Flujos enfocados en celular**: en reservar, detalle y turno rápido se ocultan cabecera y pestañas para priorizar la tarea.
+- **Objetivos táctiles de 44 px o más en todos los tamaños**: una tablet también se usa con el dedo.
+- **Sin scroll horizontal accidental**: las tiras que deslizan en celular pasan a grilla en tablet.
+
+→ `components/tab-bar.tsx` (`AppShell`), `components/ui.tsx` (`Screen`, `WithSidebar`, `BottomAction`).
+
+---
+
 ## Principios compartidos
 
 | Práctica                           | Aplicación                                                                                                                                                                                                                                                               | Dónde                                                                         |
@@ -151,7 +168,23 @@ hora) y **Llamar** están arriba, a un toque: es el canal real del negocio.
 - "Cancelar turno" es secundario visualmente (texto rojo, sin relleno) y pide confirmación explicando que **se avisa al cliente** y si **se devuelve la seña**.
 - Bloquear un horario que tiene turno se rechaza en el servidor.
 
-### 7. Densidad adecuada
+### 7. Disponibilidad en un paso
+
+"No disponible" para el día, la mañana, la tarde o un rango, para una persona o
+todo el equipo, en vez de bloquear horario por horario. Se protege lo existente:
+los horarios con turno no se tocan y el mensaje dice cuántos son, para decidir si
+avisar a esas clientas. → `app/duena/availability-panel.tsx`, `domain/availability.ts` (`planBlockRange`).
+
+### 8. Turno rápido: velocidad en el mostrador
+
+- Siempre a mano: botón fijo en la cabecera y "Agendar" en cada hueco libre.
+- **Valores por defecto inteligentes**: primer horario libre elegido; si se llega desde un hueco, ya trae profesional, día y hora.
+- Casi todo con toques (radios con forma de tarjeta, accesibles por teclado); el único texto obligatorio es el nombre.
+- Si una combinación no tiene lugar, se ofrece el próximo día disponible en un toque.
+- El celular es opcional, pero si se carga el turno queda en la cuenta de la clienta.
+  → `app/duena/nuevo/*`.
+
+### 9. Densidad adecuada
 
 En pantallas anchas el panel usa más ancho (`max-w-2xl`), pensado para una
 tablet en el mostrador, sin perder la usabilidad en celular.

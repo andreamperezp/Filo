@@ -22,9 +22,9 @@ export default async function PickProfessional({ searchParams }: PageProps<"/cli
         backLabel="Volver a servicios"
         progress={{ step: 2, total: 4, label: "Paso 2 de 4" }}
       />
-      <main className="flex-1 pb-8">
+      <main className="flex-1 pb-8 md:pb-12">
         <H1 sub={`${service.name} · ${formatDuration(service.durationMin)}`}>¿Con quién?</H1>
-        <ul className="flex flex-col gap-2.5 px-4">
+        <ul className="grid gap-2.5 px-4 md:grid-cols-2 md:gap-3">
           {options.map(({ choice, professional, next }) => (
             <li key={choice}>
               <ChoiceCard

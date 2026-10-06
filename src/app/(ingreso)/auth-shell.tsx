@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { BUSINESS } from "@/data/catalog";
+import { Logo } from "@/components/logo";
 
 /**
  * Pantallas de ingreso con la estética de la referencia: tres bandas de color
@@ -7,9 +7,8 @@ import { BUSINESS } from "@/data/catalog";
  * la paleta. En celular se apilan; en pantallas anchas el afiche va a la
  * izquierda y el formulario a la derecha.
  *
- * Contraste: el texto chico de cada banda usa Venice profundo o Merino
- * (≥ 5:1). El logo en Rock Blue sobre Merino es decorativo (WCAG exime logos)
- * y tiene nombre accesible.
+ * Contraste: el logo y el texto chico de cada banda usan Venice o Merino
+ * (≥ 5:1 sobre su fondo).
  */
 export function AuthShell({
   title,
@@ -26,10 +25,7 @@ export function AuthShell({
     <div className="flex min-h-dvh flex-col md:grid md:grid-cols-2">
       <div className="flex flex-col md:min-h-dvh">
         <header className="bg-merino px-6 pt-10 pb-6 md:flex md:flex-1 md:flex-col md:justify-end md:px-12">
-          <p aria-label={BUSINESS.name} className="font-display text-[5.5rem] leading-[0.85] text-rock md:text-[9rem]">
-            {BUSINESS.name}
-          </p>
-          <p className="mt-3 text-sm font-medium tracking-wide text-venice-deep uppercase">{BUSINESS.tagline}</p>
+          <Logo size="lg" className="text-venice" />
         </header>
         <section className="bg-rock px-6 py-7 text-venice-deep md:flex md:flex-1 md:flex-col md:justify-center md:px-12">
           <h1 className="font-display text-[2.1rem] leading-[1.05] md:text-5xl">{title}</h1>

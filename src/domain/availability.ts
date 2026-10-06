@@ -127,3 +127,32 @@ export function firstAvailable(
 export function bookingWindow(business: Business, today: IsoDate): IsoDate[] {
   return Array.from({ length: business.bookingWindowDays }, (_, i) => addDays(today, i));
 }
+
+/** Inicios de grilla de un día dentro de `[from, to)`. Vacío si el local cierra ese día. */
+export function gridInRange(business: Business, date: IsoDate, from: MinuteOfDay, to: MinuteOfDay): MinuteOfDay[] {
+  return dayGrid(business, date).filter((m) => m >= from && m < to);
+}
+
+/**
+ * Qué horarios bloquear para "no estoy disponible de X a Y" (o el día entero).
+ * Los horarios que ya tienen un turno no se bloquean: se informan aparte para
+ * que la dueña decida si avisar o reprogramar a esas clientas.
+ */
+export function planBlockRange(
+  agenda: AgendaSnapshot,
+  services: ReadonlyMap<string, Service>,
+  business: Business,
+  input: { date: IsoDate; professionalIds: readonly ProfessionalId[]; from: MinuteOfDay; to: MinuteOfDay },
+): { slots: BlockedSlot[]; busy: BlockedSlot[] } {
+  const slots: BlockedSlot[] = [];
+  const busy: BlockedSlot[] = [];
+  const withoutBlocks = { ...agenda, blocked: [] };
+  for (const professionalId of input.professionalIds) {
+    for (const start of gridInRange(business, input.date, input.from, input.to)) {
+      const slot = { date: input.date, professionalId, start };
+      const taken = isBusy(withoutBlocks, services, business, professionalId, input.date, start, business.slotMin);
+      (taken ? busy : slots).push(slot);
+    }
+  }
+  return { slots, busy };
+}

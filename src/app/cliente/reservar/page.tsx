@@ -13,9 +13,9 @@ export default async function PickService({ searchParams }: PageProps<"/cliente/
   return (
     <Screen>
       <TopBar backHref="/cliente" backLabel="Volver al inicio" progress={{ step: 1, total: 4, label: "Paso 1 de 4" }} />
-      <main className="flex-1 pb-8">
+      <main className="flex-1 pb-8 md:pb-12">
         <H1>¿Qué servicio querés?</H1>
-        <ul className="flex flex-col gap-2.5 px-4">
+        <ul className="grid gap-2.5 px-4 md:grid-cols-2 md:gap-3">
           {SERVICES.map((s) => (
             <li key={s.id}>
               <ChoiceCard

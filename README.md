@@ -22,6 +22,11 @@ identidad de marca actual:
 | Acento / logo           | **Rock Blue**   | `#84B3CE` |
 | Primario / texto fuerte | **Venice Blue** | `#16587B` |
 
+**Logo:** isotipo "filo" con el corte de tijera atravesando "lo", vectorizado del
+original (`src/components/logo.tsx`). Usa el color del texto que lo rodea, así
+funciona en Venice sobre Merino, en Merino sobre Venice y en modo oscuro. El
+favicon (`src/app/icon.svg`) es el mismo isotipo.
+
 Tipografías: **Fraunces** (títulos, peso 800 con ejes `SOFT` y `WONK` para el aire
 setentoso de la referencia) y **Outfit** (texto e interfaz).
 
@@ -49,12 +54,26 @@ setentoso de la referencia) y **Outfit** (texto e interfaz).
 ### Panel de la dueña (`/duena`)
 
 - **Agenda**: selector de 14 días con cantidad de turnos por día y filtro por profesional.
-  - Vista "Todos": lista cronológica de turnos.
-  - Vista por profesional: grilla completa con huecos **Libre → Bloquear / Bloqueado → Liberar**.
+  - Vista "Todos": lista cronológica en celular; **una columna por profesional** en tablet y escritorio.
+  - Vista por profesional: grilla completa con cada hueco **Libre → Agendar / Bloquear** y **No disponible → Liberar**.
+- **Marcar disponibilidad**: no disponible / disponible para el **día completo, la mañana, la tarde o un rango** (un profesional o todo el equipo). Los horarios que ya tienen turno no se tocan y se informa cuántos son.
+- **Turno rápido** (botón fijo en la cabecera): para la clienta que está en el local o llama. Una sola pantalla con nombre, celular opcional, servicio, profesional, día y hora, con el **primer horario libre ya elegido**. Si se carga el celular, el turno aparece en su cuenta cuando entre a Filo.
   - Los turnos nuevos que todavía no vio se resaltan con "Nuevo".
 - **Detalle del turno**: estado, datos del cliente, botones de WhatsApp (con mensaje precargado) y Llamar, seña pagada y saldo, "Marcar como atendido" y "Cancelar turno".
 - **Actividad**: reservas, cambios y cancelaciones con badge de no leídos.
 - **Avisos en vivo**: la agenda se refresca sola y aparece un toast cuando entra una reserva.
+
+### Responsive: web, tablet y celular
+
+Filo se usa desde un **link compartido** (no es una app de tienda), así que cada pantalla está diseñada para los tres tamaños:
+
+|                  | Celular (< 768 px)                                        | Tablet (768–1023 px)                  | Escritorio (≥ 1024 px)         |
+| ---------------- | --------------------------------------------------------- | ------------------------------------- | ------------------------------ |
+| Navegación       | Barra inferior (zona del pulgar)                          | Cabecera con logo y pestañas          | Igual que tablet               |
+| Inicio cliente   | Una columna                                               | Dos columnas: lo personal / servicios | Igual, más aire                |
+| Elegir horario   | Días deslizables, 4 horarios por fila, resumen fijo abajo | 14 días a la vista, 8 por fila        | Resumen en tarjeta lateral     |
+| Agenda dueña     | Lista cronológica                                         | Columna por profesional               | 14 días en una fila + columnas |
+| Flujos enfocados | Sin cabecera ni pestañas, con "Volver"                    | Con cabecera                          | Con cabecera                   |
 
 ---
 
@@ -141,7 +160,7 @@ src/
     ├── cliente/           App de clientes
     │   ├── reservar/      Flujo de reserva (servicio → profesional → horario → confirmar → listo)
     │   └── turnos/        Mis turnos
-    └── duena/             Panel de la dueña (agenda, turnos/[id], actividad)
+    └── duena/             Panel de la dueña (agenda, nuevo = turno rápido, turnos/[id], actividad)
 supabase/migrations/       Esquema Postgres con RLS para la fase 2
 docs/                      User flows, UX por rol y arquitectura
 ```

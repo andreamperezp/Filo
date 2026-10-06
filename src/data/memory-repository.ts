@@ -64,6 +64,28 @@ export class MemoryRepository implements Repository {
     return !exists;
   }
 
+  async blockSlots(slots: BlockedSlot[]) {
+    const fresh = slots.filter((slot) => !this.state.blocked.some((s) => sameSlot(s, slot)));
+    this.state.blocked = [...this.state.blocked, ...fresh];
+  }
+  async unblockRange({
+    date,
+    professionalIds,
+    from,
+    to,
+  }: {
+    date: string;
+    professionalIds: string[];
+    from: number;
+    to: number;
+  }) {
+    const inRange = (s: BlockedSlot) =>
+      s.date === date && professionalIds.includes(s.professionalId) && s.start >= from && s.start < to;
+    const before = this.state.blocked.length;
+    this.state.blocked = this.state.blocked.filter((s) => !inRange(s));
+    return before - this.state.blocked.length;
+  }
+
   async listActivity(limit = 50) {
     return [...this.state.activity].sort((a, b) => b.at.localeCompare(a.at)).slice(0, limit);
   }
@@ -81,12 +103,20 @@ export class MemoryRepository implements Repository {
   }
 }
 
-const globalForRepo = globalThis as unknown as { filoRepo?: MemoryRepository };
+/**
+ * Los datos viven en `globalThis` para sobrevivir al hot reload de `next dev`.
+ * La instancia se recrea si cambió el código de la clase (si no, una versión
+ * vieja del repositorio quedaría sin los métodos nuevos).
+ */
+const globalForRepo = globalThis as unknown as { filoState?: State; filoRepo?: unknown };
 
 export function getMemoryRepository(): MemoryRepository {
-  if (!globalForRepo.filoRepo) {
+  if (!globalForRepo.filoState) {
     const now = nowIn(BUSINESS.timeZone);
-    globalForRepo.filoRepo = new MemoryRepository({ ...buildSeed(now.date, now.minute), blocked: [] });
+    globalForRepo.filoState = { ...buildSeed(now.date, now.minute), blocked: [] };
   }
-  return globalForRepo.filoRepo;
+  if (globalForRepo.filoRepo instanceof MemoryRepository) return globalForRepo.filoRepo;
+  const repo = new MemoryRepository(globalForRepo.filoState);
+  globalForRepo.filoRepo = repo;
+  return repo;
 }

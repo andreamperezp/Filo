@@ -19,6 +19,10 @@ export interface Repository {
   listBlocked(range: { from: IsoDate; to: IsoDate }): Promise<BlockedSlot[]>;
   /** Bloquea o libera un horario. Devuelve `true` si quedó bloqueado. */
   toggleBlocked(slot: BlockedSlot): Promise<boolean>;
+  /** Bloquea varios horarios (idempotente). */
+  blockSlots(slots: BlockedSlot[]): Promise<void>;
+  /** Libera todos los horarios bloqueados de esos profesionales en `[from, to)` de un día. */
+  unblockRange(range: { date: IsoDate; professionalIds: string[]; from: number; to: number }): Promise<number>;
 
   listActivity(limit?: number): Promise<ActivityEvent[]>;
   insertActivity(event: ActivityEvent): Promise<void>;

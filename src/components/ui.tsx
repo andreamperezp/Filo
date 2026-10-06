@@ -54,10 +54,23 @@ export function ProDot({ pro }: { pro: Professional }) {
   return <span aria-hidden className={cx("inline-block size-2 rounded-full", PRO_BG[pro.colorToken])} />;
 }
 
-/** Contenedor de pantalla mobile-first: columna centrada, cómoda con el pulgar. */
-export function Screen({ children, wide = false }: { children: ReactNode; wide?: boolean }) {
+const SCREEN_WIDTH = {
+  /** Flujos enfocados (confirmación, éxito): una columna cómoda de leer. */
+  narrow: "max-w-2xl",
+  /** Pantallas con columna principal + lateral. */
+  default: "max-w-5xl",
+  /** Agenda de la dueña: aprovecha todo el ancho en escritorio. */
+  wide: "max-w-7xl",
+};
+
+/**
+ * Contenedor de página. Mobile-first: en celular ocupa todo el ancho; en
+ * tablet y escritorio se centra con un ancho máximo legible (las líneas
+ * demasiado largas cansan) y gana margen lateral.
+ */
+export function Screen({ children, width = "default" }: { children: ReactNode; width?: keyof typeof SCREEN_WIDTH }) {
   return (
-    <div className={cx("mx-auto flex min-h-dvh w-full flex-col", wide ? "max-w-2xl" : "max-w-md")}>{children}</div>
+    <div className={cx("mx-auto flex w-full flex-1 flex-col md:px-4 lg:px-6", SCREEN_WIDTH[width])}>{children}</div>
   );
 }
 
@@ -73,7 +86,7 @@ export function TopBar({
   progress?: { step: number; total: number; label: string };
 }) {
   return (
-    <header className="sticky top-0 z-10 bg-bg/95 px-4 pt-3 pb-2 backdrop-blur">
+    <header className="sticky top-0 z-10 bg-bg/95 px-4 pt-3 pb-2 backdrop-blur md:static md:bg-transparent md:pt-6 md:backdrop-blur-none">
       <div className="flex min-h-11 items-center gap-2">
         {backHref && (
           <Link
@@ -107,7 +120,7 @@ export function TopBar({
 export function H1({ children, sub }: { children: ReactNode; sub?: ReactNode }) {
   return (
     <div className="px-4 pt-2 pb-4">
-      <h1 className="font-display text-[2.1rem] leading-[1.05] tracking-tight">{children}</h1>
+      <h1 className="font-display text-[2.1rem] leading-[1.05] tracking-tight md:text-5xl">{children}</h1>
       {sub && <p className="mt-1.5 text-sm text-muted">{sub}</p>}
     </div>
   );
@@ -191,10 +204,29 @@ export function KeyValueList({ rows }: { rows: Array<[string, ReactNode]> }) {
   );
 }
 
-/** Barra fija inferior para la acción principal (zona del pulgar). */
-export function BottomAction({ children }: { children: ReactNode }) {
+/**
+ * Acción principal. En celular es una barra fija abajo (zona del pulgar); en
+ * escritorio pasa a ser una tarjeta lateral fija con el resumen, al lado del
+ * contenido (ver `WithSidebar`).
+ */
+export function BottomAction({ children, title }: { children: ReactNode; title?: string }) {
   return (
-    <div className="sticky bottom-0 mt-auto border-t border-line bg-bg/95 px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur">
+    <aside
+      aria-label={title ?? "Resumen"}
+      className="sticky bottom-0 z-10 mt-auto lg:top-24 lg:bottom-auto lg:mt-2 lg:self-start"
+    >
+      <div className="border-t border-line bg-bg/95 px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur lg:rounded-3xl lg:border lg:bg-surface lg:p-5 lg:backdrop-blur-none">
+        {title && <p className="mb-3 hidden font-display text-2xl lg:block">{title}</p>}
+        {children}
+      </div>
+    </aside>
+  );
+}
+
+/** Contenido + columna lateral de resumen en escritorio; apilados en celular y tablet. */
+export function WithSidebar({ children }: { children: ReactNode }) {
+  return (
+    <div className="flex flex-1 flex-col lg:grid lg:flex-none lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start lg:gap-8 lg:pb-10">
       {children}
     </div>
   );

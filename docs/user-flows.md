@@ -155,7 +155,37 @@ flowchart TD
   F --> G([Vuelve a la agenda · evento en Actividad])
 ```
 
-### 3. Enterarse de novedades
+### 3. Marcar disponibilidad (franco, trámite, almuerzo)
+
+```mermaid
+flowchart TD
+  A[Agenda · día elegido] --> B[Marcar disponibilidad]
+  B --> C[Profesional o todo el equipo]
+  C --> D[Atajo: Todo el día / Mañana / Tarde<br/>o rango Desde–Hasta]
+  D --> E{¿No disponible o disponible?}
+  E -- No disponible --> F[Se bloquean los horarios libres del rango<br/>los que tienen turno no se tocan y se informan]
+  E -- Disponible --> G[Se liberan los bloqueados del rango]
+  F & G --> H([Mensaje: 'Listo: N horarios…'<br/>las clientas ya no ven / vuelven a ver esos horarios])
+```
+
+También se puede bloquear o liberar **un horario suelto** desde la vista por profesional.
+
+### 4. Turno rápido (clienta en el local o por teléfono)
+
+```mermaid
+flowchart TD
+  A{¿Desde dónde?} -- Botón 'Turno rápido' --> B[Formulario con el primer horario libre ya elegido]
+  A -- Hueco 'Libre' → Agendar --> C[Formulario con profesional, día y hora de ese hueco]
+  B & C --> D[Nombre · celular opcional · servicio · con quién · día · hora<br/>todo con toques, sin teclado salvo el nombre]
+  D --> E{¿Cambió algo y el horario ya no sirve?}
+  E -- Sí --> F[Se elige solo el primer libre<br/>o se sugiere el próximo día con lugar] --> D
+  E -- No --> G[Agendar turno]
+  G --> H{El servidor revalida}
+  H -- Ocupado --> I[Error claro, los datos se conservan] --> D
+  H -- OK --> J([Detalle del turno · 'Turno agendado'<br/>si dejó celular: aparece en su cuenta])
+```
+
+### 5. Enterarse de novedades
 
 ```mermaid
 sequenceDiagram

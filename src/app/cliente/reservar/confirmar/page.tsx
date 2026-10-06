@@ -9,7 +9,7 @@ import { confirmBooking, confirmReschedule } from "@/server/actions";
 import { getAvailability, getClientBookings, serviceOrNull } from "@/server/bookings";
 import { requireClient } from "@/server/session";
 import { ActionForm, SubmitButton } from "@/components/forms";
-import { BottomAction, H1, KeyValueList, Screen, TopBar, cx } from "@/components/ui";
+import { BottomAction, H1, KeyValueList, Screen, TopBar, WithSidebar, cx } from "@/components/ui";
 import { flowHref, readFlowParams } from "../params";
 
 export const metadata = { title: "Revisá tu turno" };
@@ -59,101 +59,102 @@ export default async function Confirm({ searchParams }: PageProps<"/cliente/rese
         progress={rescheduling ? undefined : { step: 4, total: 4, label: "Paso 4 de 4" }}
         title={rescheduling ? "Cambiar turno" : undefined}
       />
-      <main className="flex-1 pb-4">
-        <H1>Revisá tu turno</H1>
-        <KeyValueList
-          rows={[
-            ["Servicio", service.name],
-            ["Con", assigned.name],
-            ["Día", formatLongDay(params.fecha)],
-            ["Hora", `${formatTime(params.hora)} a ${formatTime(params.hora + service.durationMin)}`],
-            ["Precio", formatMoney(service.priceArs)],
-          ]}
-        />
+      <WithSidebar>
+        <main className="pb-4">
+          <H1>Revisá tu turno</H1>
+          <KeyValueList
+            rows={[
+              ["Servicio", service.name],
+              ["Con", assigned.name],
+              ["Día", formatLongDay(params.fecha)],
+              ["Hora", `${formatTime(params.hora)} a ${formatTime(params.hora + service.durationMin)}`],
+              ["Precio", formatMoney(service.priceArs)],
+            ]}
+          />
 
-        {!rescheduling && (
-          <section className="px-4 pt-6">
-            <h2 id="pay-title" className="pb-2 text-xs font-bold tracking-wider text-muted uppercase">
-              ¿Cómo pagás?
-            </h2>
-            <div role="radiogroup" aria-labelledby="pay-title" className="flex flex-col gap-2.5">
-              {payOptions.map((p) => {
-                const on = payment === p.id;
-                return (
-                  <Link
-                    key={p.id}
-                    href={flowHref("/cliente/reservar/confirmar", { ...params, pago: p.id })}
-                    replace
-                    scroll={false}
-                    role="radio"
-                    aria-checked={on}
-                    className={cx(
-                      "flex items-center gap-3 rounded-2xl border p-4",
-                      on ? "border-primary bg-accent-soft" : "border-line bg-surface",
-                    )}
-                  >
-                    <span
-                      aria-hidden
+          {!rescheduling && (
+            <section className="px-4 pt-6">
+              <h2 id="pay-title" className="pb-2 text-xs font-bold tracking-wider text-muted uppercase">
+                ¿Cómo pagás?
+              </h2>
+              <div role="radiogroup" aria-labelledby="pay-title" className="flex flex-col gap-2.5">
+                {payOptions.map((p) => {
+                  const on = payment === p.id;
+                  return (
+                    <Link
+                      key={p.id}
+                      href={flowHref("/cliente/reservar/confirmar", { ...params, pago: p.id })}
+                      replace
+                      scroll={false}
+                      role="radio"
+                      aria-checked={on}
                       className={cx(
-                        "grid size-5 place-items-center rounded-full border-2",
-                        on ? "border-primary" : "border-line",
+                        "flex items-center gap-3 rounded-2xl border p-4",
+                        on ? "border-primary bg-accent-soft" : "border-line bg-surface",
                       )}
                     >
-                      {on && <span className="size-2.5 rounded-full bg-primary" />}
-                    </span>
-                    <span>
-                      <span className="block font-bold">{p.title}</span>
-                      <span className="block text-sm text-muted">{p.sub}</span>
-                    </span>
-                  </Link>
-                );
-              })}
-            </div>
-          </section>
-        )}
+                      <span
+                        aria-hidden
+                        className={cx(
+                          "grid size-5 place-items-center rounded-full border-2",
+                          on ? "border-primary" : "border-line",
+                        )}
+                      >
+                        {on && <span className="size-2.5 rounded-full bg-primary" />}
+                      </span>
+                      <span>
+                        <span className="block font-bold">{p.title}</span>
+                        <span className="block text-sm text-muted">{p.sub}</span>
+                      </span>
+                    </Link>
+                  );
+                })}
+              </div>
+            </section>
+          )}
 
-        <p className="mx-4 mt-5 text-sm leading-relaxed text-muted">
-          Podés cancelar o cambiar el turno gratis hasta {BUSINESS.freeCancellationHours} h antes desde “Mis turnos”.
-        </p>
-      </main>
-
-      <BottomAction>
-        <div className="mb-2 flex items-baseline justify-between text-sm">
-          <span className="text-muted">
-            {rescheduling
-              ? "Nuevo horario"
-              : payment === "deposit"
-                ? "Pagás ahora · resto en el local"
-                : "Total a pagar en el local"}
-          </span>
-          <span className="text-lg font-bold tabular-nums">
-            {rescheduling
-              ? `${formatTime(params.hora)}`
-              : formatMoney(payment === "deposit" ? amountDueNow(BUSINESS, service, payment) : service.priceArs)}
-          </span>
-        </div>
-        {rescheduling ? (
-          <ActionForm
-            action={confirmReschedule}
-            hidden={{ bookingId: rescheduling.id, professional, date: params.fecha, start: params.hora }}
-            className="flex flex-col gap-2"
-          >
-            <SubmitButton pendingLabel="Cambiando…" className="w-full">
-              Confirmar cambio
-            </SubmitButton>
-          </ActionForm>
-        ) : (
-          <ActionForm
-            action={confirmBooking}
-            hidden={{ serviceId: service.id, professional, date: params.fecha, start: params.hora, payment }}
-            className="flex flex-col gap-2"
-          >
-            <SubmitButton pendingLabel="Confirmando…" className="w-full">
-              {payment === "deposit" ? "Pagar seña y confirmar" : "Confirmar turno"}
-            </SubmitButton>
-          </ActionForm>
-        )}
-      </BottomAction>
+          <p className="mx-4 mt-5 text-sm leading-relaxed text-muted">
+            Podés cancelar o cambiar el turno gratis hasta {BUSINESS.freeCancellationHours} h antes desde “Mis turnos”.
+          </p>
+        </main>
+        <BottomAction title="Resumen">
+          <div className="mb-2 flex items-baseline justify-between text-sm">
+            <span className="text-muted">
+              {rescheduling
+                ? "Nuevo horario"
+                : payment === "deposit"
+                  ? "Pagás ahora · resto en el local"
+                  : "Total a pagar en el local"}
+            </span>
+            <span className="text-lg font-bold tabular-nums">
+              {rescheduling
+                ? `${formatTime(params.hora)}`
+                : formatMoney(payment === "deposit" ? amountDueNow(BUSINESS, service, payment) : service.priceArs)}
+            </span>
+          </div>
+          {rescheduling ? (
+            <ActionForm
+              action={confirmReschedule}
+              hidden={{ bookingId: rescheduling.id, professional, date: params.fecha, start: params.hora }}
+              className="flex flex-col gap-2"
+            >
+              <SubmitButton pendingLabel="Cambiando…" className="w-full">
+                Confirmar cambio
+              </SubmitButton>
+            </ActionForm>
+          ) : (
+            <ActionForm
+              action={confirmBooking}
+              hidden={{ serviceId: service.id, professional, date: params.fecha, start: params.hora, payment }}
+              className="flex flex-col gap-2"
+            >
+              <SubmitButton pendingLabel="Confirmando…" className="w-full">
+                {payment === "deposit" ? "Pagar seña y confirmar" : "Confirmar turno"}
+              </SubmitButton>
+            </ActionForm>
+          )}
+        </BottomAction>
+      </WithSidebar>
     </Screen>
   );
 }

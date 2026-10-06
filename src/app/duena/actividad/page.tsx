@@ -5,7 +5,6 @@ import { getActivity } from "@/server/bookings";
 import { requireOwner } from "@/server/session";
 import { SubmitButton } from "@/components/forms";
 import { H1, Screen, cx } from "@/components/ui";
-import { OwnerTabs } from "../owner-tabs";
 
 export const metadata = { title: "Actividad" };
 
@@ -31,7 +30,7 @@ export default async function Activity() {
   const unread = events.some((e) => !e.read);
 
   return (
-    <Screen wide>
+    <Screen width="narrow">
       <main className="flex-1 pb-6">
         <div className="flex items-end justify-between pt-6 pr-4">
           <H1 sub="Reservas, cambios y cancelaciones">Actividad</H1>
@@ -64,7 +63,6 @@ export default async function Activity() {
           })}
         </ul>
       </main>
-      <OwnerTabs />
     </Screen>
   );
 }
