@@ -17,12 +17,20 @@ export default async function SignIn() {
       title="Tu turno, en un minuto."
       subtitle="Ingresá con tu celular para reservar, cambiar o cancelar."
       footer={
-        <p className="text-merino/85">
-          ¿Trabajás en Filo?{" "}
-          <Link href="/equipo" className="font-semibold text-merino underline underline-offset-4">
-            Ingresá al panel del equipo
-          </Link>
-        </p>
+        <div className="flex flex-col gap-2 text-merino/85">
+          <p>
+            ¿Trabajás en Filo?{" "}
+            <Link href="/equipo" className="font-semibold text-merino underline underline-offset-4">
+              Ingresá al panel del equipo
+            </Link>
+          </p>
+          <p>
+            ¿Tenés una peluquería?{" "}
+            <Link href="/sistema" className="font-semibold text-merino underline underline-offset-4">
+              Conocé Filo System
+            </Link>
+          </p>
+        </div>
       }
     >
       <PhoneForm />
