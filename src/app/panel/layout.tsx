@@ -1,3 +1,4 @@
+import { DemoGuide } from "@/components/demo-guide";
 import { AppShell, type Tab } from "@/components/tab-bar";
 import { getActivityFor } from "@/server/bookings";
 import { requireStaff } from "@/server/session";
@@ -32,6 +33,7 @@ export default async function StaffLayout({ children }: LayoutProps<"/panel">) {
     >
       <LiveUpdates latest={latest && { id: latest.id, title: latest.title, detail: latest.detail }} />
       {children}
+      <DemoGuide audience={user.role} />
     </AppShell>
   );
 }

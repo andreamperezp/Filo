@@ -141,10 +141,16 @@ npm run dev
 Abrí <http://localhost:3000>:
 
 - **Cliente**: ingresá un celular. En modo demo no se envían mensajes y el código aparece en pantalla. Con `11 5523-8841` entrás como Martín (tiene turnos); con cualquier otro número ves el alta de un cliente nuevo.
-- **Equipo**: andá a `/equipo` (link al pie del login). Cuentas de prueba (contraseñas en `.env.development`):
-  - Superadmin: el email de `ADMIN_EMAIL`.
-  - Peluqueros: `lucas@filo.test` y `sofia@filo.test` (con `DEV_STAFF_PASSWORD`).
-  - O creá una cuenta nueva desde **Equipo** y probá el primer ingreso con la contraseña temporal.
+- **Equipo**: andá a `/equipo` (link al pie del login). En modo demo elegís **“Probar como”**
+  (dueña o peluquero) y entrás con **cualquier email y contraseña**, incluso vacíos.
+  - Si ponés los datos de una cuenta real de la demo, entrás con esa: superadmin (`ADMIN_EMAIL`),
+    `lucas@filo.test` y `sofia@filo.test` (con `DEV_STAFF_PASSWORD`), o una creada desde **Equipo**
+    (así probás el primer ingreso con la contraseña temporal).
+  - Fuera del modo demo, el ingreso exige usuario y contraseña reales.
+- **Guía de la demo**: cada pantalla abre sola, la primera vez, una guía paso a paso
+  ([driver.js](https://driverjs.com)) que explica quién la usa, para qué sirve y qué cambia en la
+  versión real. Se repite con el botón **Guía** del costado. Los textos están en
+  `src/components/demo-guide/tours.ts`; fuera del modo demo no se carga.
 
 Para ver la interacción entre roles, abrí cada uno en una ventana distinta (una en
 modo incógnito): lo que reserva el cliente aparece en la agenda del equipo.

@@ -149,12 +149,49 @@ export function ProfileForm() {
 
 /* ───────────── Equipo: email + contraseña ───────────── */
 
-export function StaffForm() {
+const DEMO_ROLES = [
+  {
+    value: "admin",
+    title: "Dueña del local",
+    detail: "Romina · ve la agenda de todo el equipo, la caja y crea usuarios.",
+  },
+  {
+    value: "professional",
+    title: "Peluquero",
+    detail: "Lucas · ve solo sus turnos y lo que cobró él.",
+  },
+] as const;
+
+/** `demo`: los datos son de ejemplo, así que se entra con cualquier email y contraseña. */
+export function StaffForm({ demo = false }: { demo?: boolean }) {
   const [state, action] = useActionState(staffSignIn, initial);
   return (
-    <form action={action} className="flex flex-col gap-5" noValidate>
+    <form action={action} className="flex flex-col gap-5" noValidate data-tour="staff-form">
       {state.error && <ErrorText>{state.error}</ErrorText>}
-      <Field label="Email">
+      {demo && (
+        <fieldset className="flex flex-col gap-2" data-tour="staff-role">
+          <legend className="mb-2 text-sm font-semibold">Probar como</legend>
+          {DEMO_ROLES.map((r, i) => (
+            <label
+              key={r.value}
+              className="flex cursor-pointer gap-3 rounded-xl border-2 border-merino/25 p-3 has-[:checked]:border-merino has-[:checked]:bg-merino/10 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-merino"
+            >
+              <input
+                type="radio"
+                name="as"
+                value={r.value}
+                defaultChecked={i === 0}
+                className="mt-1 size-4 accent-merino"
+              />
+              <span className="flex flex-col">
+                <span className="font-semibold">{r.title}</span>
+                <span className="text-sm text-merino/80">{r.detail}</span>
+              </span>
+            </label>
+          ))}
+        </fieldset>
+      )}
+      <Field label="Email" hint={demo ? "En la demo vale cualquiera, o dejalo vacío." : undefined}>
         {(a11y) => (
           <input
             {...a11y}
@@ -164,17 +201,18 @@ export function StaffForm() {
             autoComplete="username"
             autoCapitalize="none"
             spellCheck={false}
+            placeholder={demo ? "demo@tulocal.com" : undefined}
             defaultValue={state.values?.email}
-            required
-            autoFocus
+            required={!demo}
+            autoFocus={!demo}
             className={inputClass}
           />
         )}
       </Field>
       <Field label="Contraseña">
-        {(a11y) => <PasswordInput {...a11y} name="password" autoComplete="current-password" required />}
+        {(a11y) => <PasswordInput {...a11y} name="password" autoComplete="current-password" required={!demo} />}
       </Field>
-      <PrimaryButton pendingLabel="Ingresando…">Ingresar</PrimaryButton>
+      <PrimaryButton pendingLabel="Ingresando…">{demo ? "Entrar a la demo" : "Ingresar"}</PrimaryButton>
     </form>
   );
 }

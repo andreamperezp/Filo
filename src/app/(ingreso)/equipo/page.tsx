@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSession } from "@/server/session";
-import { isDemo, isProduction } from "@/server/env";
+import { isDemo } from "@/server/env";
 import { AuthShell } from "../auth-shell";
 import { StaffForm } from "../forms";
 
@@ -25,16 +25,11 @@ export default async function TeamSignIn() {
         </p>
       }
     >
-      <StaffForm />
+      <StaffForm demo={isDemo} />
       {isDemo && (
         <p className="mt-5 rounded-xl border border-dashed border-merino/40 p-3 text-sm text-merino/85">
-          {isProduction ? (
-            "Demo: pedile a la administradora un usuario de prueba."
-          ) : (
-            <>
-              Demo: los datos de prueba están en <code className="font-mono text-merino">.env.development</code>.
-            </>
-          )}
+          Demo: elegí qué rol querés probar y entrá con cualquier email y contraseña. En el local real, cada persona
+          tiene su propio usuario, creado por la dueña.
         </p>
       )}
     </AuthShell>

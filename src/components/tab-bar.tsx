@@ -86,7 +86,7 @@ export function AppShell({
             <LogoMark className="w-16 md:w-[4.5rem]" title="Filo" />
           </Link>
 
-          <nav aria-label={navLabel} className="hidden md:block">
+          <nav aria-label={navLabel} className="hidden md:block" data-tour="tabs">
             <ul className="flex gap-1">
               {tabs.map((tab) => {
                 const active = isActive(pathname, tab);
@@ -112,10 +112,13 @@ export function AppShell({
           </nav>
 
           <div className="ml-auto flex items-center gap-1 md:gap-2">
-            <ThemeToggle />
+            <span data-tour="theme" className="flex">
+              <ThemeToggle />
+            </span>
             {action && (
               <Link
                 href={action.href}
+                data-tour="quick-action"
                 className="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-primary px-4 text-sm font-bold text-on-primary transition active:scale-[0.98]"
               >
                 <IconPlus aria-hidden size={18} stroke={2.4} />
@@ -151,6 +154,7 @@ export function AppShell({
         <nav
           aria-label={navLabel}
           className="sticky bottom-0 z-20 flex border-t border-line bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
+          data-tour="tabs"
         >
           {tabs.map((tab) => {
             const active = isActive(pathname, tab);

@@ -2,8 +2,8 @@ import "server-only";
 
 import { nowIn } from "@/domain/time";
 import type { ActivityEvent, BlockedSlot, Booking, Client, Professional, StaffUser } from "@/domain/types";
-import { hashPassword } from "@/lib/password";
-import { env } from "@/server/env";
+import { hashPassword, temporaryPassword } from "@/lib/password";
+import { env, isDemo } from "@/server/env";
 import { BUSINESS } from "./catalog";
 import type { Repository } from "./repository";
 import { buildSeed } from "./seed";
@@ -144,11 +144,13 @@ export class MemoryRepository implements Repository {
 const STATE_VERSION = 3;
 
 export const ADMIN_STAFF_ID = "staff-romina";
+/** Peluquero con el que entra la demo cuando se elige "probar como peluquero". */
+export const DEMO_PROFESSIONAL_STAFF_ID = "staff-lucas";
 
 /**
  * Cuentas iniciales del equipo. La del admin sale de las variables de entorno
- * (`ADMIN_EMAIL` / `ADMIN_PASSWORD`); en desarrollo se agregan Lucas y Sofía
- * con `DEV_STAFF_PASSWORD` para probar el acceso de cada peluquero.
+ * (`ADMIN_EMAIL` / `ADMIN_PASSWORD`); en la demo se agregan Lucas y Sofía
+ * para probar el acceso de cada peluquero.
  */
 function seedStaff(): StaffUser[] {
   const { ADMIN_EMAIL, ADMIN_PASSWORD, DEV_STAFF_PASSWORD } = env();
@@ -166,8 +168,10 @@ function seedStaff(): StaffUser[] {
       createdAt,
     },
   ];
-  if (DEV_STAFF_PASSWORD) {
-    const hash = hashPassword(DEV_STAFF_PASSWORD);
+  // En la demo siempre existen (el ingreso de prueba entra como Lucas); sin
+  // DEV_STAFF_PASSWORD su contraseña es aleatoria y nadie la conoce.
+  if (isDemo) {
+    const hash = hashPassword(DEV_STAFF_PASSWORD ?? temporaryPassword());
     for (const [id, name, email, professionalId] of [
       ["staff-lucas", "Lucas", "lucas@filo.test", "lucas"],
       ["staff-sofia", "Sofía", "sofia@filo.test", "sofi"],

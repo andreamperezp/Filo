@@ -2,7 +2,8 @@
 
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { getMemoryRepository } from "@/data/memory-repository";
+import { ADMIN_STAFF_ID, DEMO_PROFESSIONAL_STAFF_ID, getMemoryRepository } from "@/data/memory-repository";
+import { isDemo } from "./env";
 import { normalizeArMobile } from "@/domain/phone";
 import { issueCode, verifyCode } from "./one-time-code";
 import { checkStaffCredentials } from "./staff-auth";
@@ -103,6 +104,22 @@ export async function changePhone() {
 export async function staffSignIn(_prev: AuthState, form: FormData): Promise<AuthState> {
   const email = field(form, "email");
   const password = String(form.get("password") ?? "");
+
+  // Demo pública: cualquiera entra con cualquier dato, eligiendo qué rol probar.
+  // Si los datos son de una cuenta real de la demo (p. ej. una creada desde
+  // Equipo), entra con esa. Todos los datos son de ejemplo; fuera de la demo
+  // este atajo no existe.
+  if (isDemo) {
+    const real = email && password ? await checkStaffCredentials(email, password) : null;
+    if (real?.ok) {
+      await startSession("staff", real.user.id);
+      redirect(real.user.mustChangePassword ? "/equipo/clave" : "/panel");
+    }
+    const as = field(form, "as") === "professional" ? DEMO_PROFESSIONAL_STAFF_ID : ADMIN_STAFF_ID;
+    await startSession("staff", as);
+    redirect("/panel");
+  }
+
   if (!email || !password) return { error: "Completá email y contraseña.", values: { email } };
 
   const result = await checkStaffCredentials(email, password);

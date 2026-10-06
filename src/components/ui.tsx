@@ -96,7 +96,10 @@ export function TopBar({
   progress?: { step: number; total: number; label: string };
 }) {
   return (
-    <header className="sticky top-0 z-10 bg-bg/95 px-4 pt-3 pb-2 backdrop-blur md:static md:bg-transparent md:pt-6 md:backdrop-blur-none">
+    <header
+      data-tour="topbar"
+      className="sticky top-0 z-10 bg-bg/95 px-4 pt-3 pb-2 backdrop-blur md:static md:bg-transparent md:pt-6 md:backdrop-blur-none"
+    >
       <div className="flex min-h-11 items-center gap-2">
         {backHref && (
           <Link

@@ -1,3 +1,4 @@
+import { DemoGuide } from "@/components/demo-guide";
 import { AppShell } from "@/components/tab-bar";
 import { requireClient } from "@/server/session";
 
@@ -15,6 +16,7 @@ export default async function ClientLayout({ children }: LayoutProps<"/cliente">
       ]}
     >
       {children}
+      <DemoGuide audience="client" />
     </AppShell>
   );
 }

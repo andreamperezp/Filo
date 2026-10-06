@@ -76,7 +76,7 @@ export default async function BookingDetail({ params, searchParams }: PageProps<
           <p className="text-muted">{b.clientPhone ? formatArMobile(b.clientPhone) : "Sin celular registrado"}</p>
           {/* Contacto en un toque: el canal real de una peluquería es WhatsApp. */}
           {b.clientPhone && (
-            <div className="mt-4 grid grid-cols-2 gap-2">
+            <div className="mt-4 grid grid-cols-2 gap-2" data-tour="contact">
               <a
                 href={`https://wa.me/${phoneDigits}?text=${message}`}
                 className={buttonVariants.secondary}
@@ -131,7 +131,7 @@ export default async function BookingDetail({ params, searchParams }: PageProps<
           />
 
           {b.status === "confirmed" && (
-            <div className="flex flex-col gap-2 px-4 pt-6">
+            <div className="flex flex-col gap-2 px-4 pt-6" data-tour="booking-actions">
               {canClose && (
                 <ButtonLink href={`/panel/turnos/${b.id}/cerrar`} className="w-full">
                   <IconCash aria-hidden size={20} /> Finalizar y cobrar

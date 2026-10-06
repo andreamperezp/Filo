@@ -151,3 +151,90 @@ dialog::backdrop {
 .animate-slide-up {
   animation: slide-up 220ms ease-out;
 }
+
+/* Guía de la demo (driver.js) con la paleta de Filo. */
+.driver-popover.filo-guide {
+  max-width: min(24rem, calc(100vw - 2rem));
+  border: 1px solid var(--line);
+  border-radius: 1.25rem;
+  background: var(--surface);
+  color: var(--ink);
+  padding: 1.25rem;
+  font-family: var(--font-sans);
+  box-shadow: 0 18px 50px rgb(0 0 0 / 0.28);
+}
+.filo-guide .driver-popover-title {
+  font-family: var(--font-fraunces), serif;
+  font-size: 1.4rem;
+  font-weight: 600;
+  line-height: 1.15;
+}
+.filo-guide .driver-popover-description {
+  margin-top: 0.5rem;
+  font-size: 0.95rem;
+  line-height: 1.55;
+  color: var(--ink);
+}
+.filo-guide .driver-popover-description p + p,
+.filo-guide .driver-popover-description p + ul,
+.filo-guide .driver-popover-description ul + p {
+  margin-top: 0.6rem;
+}
+.filo-guide .driver-popover-description ul {
+  margin-top: 0.4rem;
+  padding-left: 1.1rem;
+  list-style: disc;
+}
+.filo-guide .driver-popover-description li + li {
+  margin-top: 0.3rem;
+}
+.filo-guide .filo-guide-who {
+  display: inline-block;
+  margin-bottom: 0.6rem;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--on-accent-soft);
+  padding: 0.2rem 0.65rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+.filo-guide .driver-popover-progress-text {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+.filo-guide .driver-popover-footer {
+  margin-top: 1rem;
+}
+.filo-guide .driver-popover-footer button {
+  min-height: 2.75rem;
+  border: 0;
+  border-radius: 999px;
+  padding: 0 1rem;
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 700;
+  text-shadow: none;
+  background: var(--surface-2);
+  color: var(--ink);
+}
+.filo-guide .driver-popover-footer .driver-popover-next-btn {
+  background: var(--primary);
+  color: var(--on-primary);
+}
+.filo-guide .driver-popover-close-btn {
+  width: 2.75rem;
+  height: 2.75rem;
+  color: var(--muted);
+}
+.filo-guide .driver-popover-arrow-side-left.driver-popover-arrow {
+  border-left-color: var(--surface);
+}
+.filo-guide .driver-popover-arrow-side-right.driver-popover-arrow {
+  border-right-color: var(--surface);
+}
+.filo-guide .driver-popover-arrow-side-top.driver-popover-arrow {
+  border-top-color: var(--surface);
+}
+.filo-guide .driver-popover-arrow-side-bottom.driver-popover-arrow {
+  border-bottom-color: var(--surface);
+}
