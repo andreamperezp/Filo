@@ -1,9 +1,9 @@
 import type { Metadata, Viewport } from "next";
-import { Instrument_Serif, Manrope } from "next/font/google";
+import { Fraunces, Outfit } from "next/font/google";
 import "./globals.css";
 
-const manrope = Manrope({ variable: "--font-manrope", subsets: ["latin"] });
-const instrument = Instrument_Serif({ variable: "--font-instrument", subsets: ["latin"], weight: "400" });
+const outfit = Outfit({ variable: "--font-outfit", subsets: ["latin"] });
+const fraunces = Fraunces({ variable: "--font-fraunces", subsets: ["latin"], axes: ["SOFT", "WONK", "opsz"] });
 
 export const metadata: Metadata = {
   title: { default: "Filo · peluquería y barbería", template: "%s · Filo" },
@@ -13,14 +13,14 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f3eee6" },
-    { media: "(prefers-color-scheme: dark)", color: "#16100d" },
+    { media: "(prefers-color-scheme: light)", color: "#f5eedd" },
+    { media: "(prefers-color-scheme: dark)", color: "#0b2638" },
   ],
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="es-AR" className={`${manrope.variable} ${instrument.variable} h-full antialiased`}>
+    <html lang="es-AR" className={`${outfit.variable} ${fraunces.variable} h-full antialiased`}>
       <body className="min-h-full font-sans">{children}</body>
     </html>
   );

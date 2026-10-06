@@ -85,6 +85,14 @@ export interface BlockedSlot {
   start: MinuteOfDay;
 }
 
+export interface Client {
+  id: string;
+  name: string;
+  /** Celular en formato E.164 (ver `domain/phone.ts`). Es su identificador para ingresar. */
+  phone: string;
+  createdAt: string;
+}
+
 export type ActivityKind = "created" | "cancelled" | "rescheduled";
 
 export interface ActivityEvent {

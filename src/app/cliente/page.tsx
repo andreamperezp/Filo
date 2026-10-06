@@ -5,7 +5,7 @@ import { formatMoney } from "@/domain/money";
 import { formatDuration } from "@/domain/time";
 import { describeWhen, getClientBookings } from "@/server/bookings";
 import { requireClient } from "@/server/session";
-import { signOut } from "@/server/actions";
+import { signOut } from "@/server/auth-actions";
 import { ButtonLink, Screen, SectionTitle, ServiceIcon } from "@/components/ui";
 import { ClientTabs } from "./client-tabs";
 
@@ -27,7 +27,7 @@ export default async function ClientHome() {
           <form action={signOut}>
             <button
               type="submit"
-              aria-label={`${client.name}: salir de la demo`}
+              aria-label={`${client.name}: cerrar sesión`}
               className="grid size-11 place-items-center rounded-full bg-primary font-bold text-on-primary"
             >
               {client.firstName[0]}

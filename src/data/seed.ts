@@ -1,7 +1,7 @@
 import { dayGrid } from "@/domain/availability";
 import { addDays, formatRelativeDay, formatTime, minutesUntil } from "@/domain/time";
-import type { ActivityEvent, Booking, IsoDate, MinuteOfDay } from "@/domain/types";
-import { BUSINESS, DEMO_CLIENT, PROFESSIONALS, SERVICES } from "./catalog";
+import type { ActivityEvent, Booking, Client, IsoDate, MinuteOfDay } from "@/domain/types";
+import { BUSINESS, SEED_CLIENT, PROFESSIONALS, SERVICES } from "./catalog";
 
 const CLIENTS = [
   "Valentina Ríos",
@@ -27,7 +27,7 @@ function rnd(a: number, b: number, c: number): number {
 }
 
 function fakePhone(seed: number): string {
-  return `+54 11 ${4000 + ((seed * 731) % 5000)}-${1000 + ((seed * 37) % 9000)}`;
+  return `+54911${4000 + ((seed * 731) % 5000)}${1000 + ((seed * 37) % 9000)}`;
 }
 
 /** Agenda de ejemplo para los próximos 14 días, relativa a "hoy". */
@@ -35,6 +35,7 @@ export function buildSeed(
   today: IsoDate,
   nowMinute: MinuteOfDay,
 ): {
+  clients: Client[];
   bookings: Booking[];
   activity: ActivityEvent[];
 } {
@@ -47,9 +48,9 @@ export function buildSeed(
     serviceId,
     professionalId: "lucas",
     status,
-    clientId: DEMO_CLIENT.id,
-    clientName: DEMO_CLIENT.name,
-    clientPhone: DEMO_CLIENT.phone,
+    clientId: SEED_CLIENT.id,
+    clientName: SEED_CLIENT.name,
+    clientPhone: SEED_CLIENT.phone,
     payment: "in_store",
     unseenByOwner: false,
     createdAt,
@@ -127,5 +128,7 @@ export function buildSeed(
       })
     : [];
 
-  return { bookings, activity };
+  const clients: Client[] = [{ ...SEED_CLIENT, createdAt }];
+
+  return { clients, bookings, activity };
 }

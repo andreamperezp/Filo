@@ -101,6 +101,8 @@ export const SERVICES: Service[] = [
 export const SERVICE_BY_ID: ReadonlyMap<string, Service> = new Map(SERVICES.map((s) => [s.id, s]));
 export const PROFESSIONAL_BY_ID: ReadonlyMap<string, Professional> = new Map(PROFESSIONALS.map((p) => [p.id, p]));
 
-/** Usuarios de demo hasta conectar Supabase Auth. */
-export const DEMO_CLIENT = { id: "client-martin", name: "Martín Díaz", firstName: "Martín", phone: "+54 11 5523-8841" };
-export const DEMO_OWNER = { id: "owner-romina", name: "Romina", firstName: "Romina" };
+/** Cliente de ejemplo con historial (ingresa con su celular). */
+export const SEED_CLIENT = { id: "client-martin", name: "Martín Díaz", phone: "+5491155238841" };
+
+/** Cuenta de la dueña. La contraseña se configura por variable de entorno (ver `.env.example`). */
+export const OWNER = { id: "owner-romina", name: "Romina", firstName: "Romina" };

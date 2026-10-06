@@ -7,7 +7,8 @@ coinciden con las rutas de `src/app`.
 
 ```mermaid
 flowchart LR
-  Entrada["/ · Elegir rol (demo)"]
+  Entrada["/ · Ingresar con celular"]
+  Equipo["/equipo · Ingreso de la dueña"]
   subgraph Cliente["App de clientes"]
     CI["/cliente · Inicio"]
     R1["/reservar · Servicio"]
@@ -22,7 +23,8 @@ flowchart LR
     DT["/duena/turnos/[id] · Detalle"]
     AC["/duena/actividad"]
   end
-  Entrada --> CI & AG
+  Entrada --> CI
+  Equipo --> AG
   CI --> R1 --> R2 --> R3 --> R4 --> R5
   CI -- "atajo: tocar un servicio" --> R2
   R5 --> MT & CI
@@ -31,6 +33,44 @@ flowchart LR
   MT -- "Repetir" --> R3
   AG --> DT
   AG <--> AC
+```
+
+---
+
+## Ingreso
+
+### Cliente: celular + código (sin contraseña)
+
+**Por qué así:** el cliente entra pocas veces al mes; una contraseña más es
+fricción y se olvida. El celular ya es su identidad para el local (WhatsApp).
+
+```mermaid
+flowchart TD
+  A([Abre Filo]) --> B{¿Sesión activa?<br/>dura 30 días}
+  B -- Sí --> Z([Inicio del cliente])
+  B -- No --> C[Ingresa su celular<br/>acepta 11 5523-8841, 011 15…, +54 9…]
+  C --> D{¿Número válido?}
+  D -- No --> E[Error junto al campo con un ejemplo] --> C
+  D -- Sí --> F[Código de 6 números por WhatsApp<br/>vence en 5 min]
+  F --> G[Ingresa el código<br/>se envía solo al completar 6 dígitos]
+  G --> H{¿Correcto?}
+  H -- No --> I[Error · conserva lo escrito<br/>5 intentos máx.] --> G
+  H -- Venció --> J[No me llegó, enviar otro<br/>disponible a los 30 s] --> G
+  H -- Sí --> K{¿Cliente conocido?}
+  K -- Sí --> Z
+  K -- No --> L[Única pregunta: nombre y apellido] --> Z
+  F -. Usar otro número .-> C
+```
+
+### Dueña: email + contraseña
+
+```mermaid
+flowchart TD
+  A([/equipo]) --> B[Email + contraseña<br/>botón Mostrar contraseña]
+  B --> C{¿Correctos?}
+  C -- No --> D[Email o contraseña incorrectos<br/>mismo mensaje para ambos] --> B
+  C -- 5 fallos --> E[Bloqueado 15 min]
+  C -- Sí --> F([Agenda de hoy · sesión de 12 h])
 ```
 
 ---

@@ -1,12 +1,13 @@
 import "server-only";
 
 import { nowIn } from "@/domain/time";
-import type { ActivityEvent, BlockedSlot, Booking } from "@/domain/types";
+import type { ActivityEvent, BlockedSlot, Booking, Client } from "@/domain/types";
 import { BUSINESS } from "./catalog";
 import type { Repository } from "./repository";
 import { buildSeed } from "./seed";
 
 interface State {
+  clients: Client[];
   bookings: Booking[];
   blocked: BlockedSlot[];
   activity: ActivityEvent[];
@@ -24,6 +25,16 @@ export class MemoryRepository implements Repository {
   private queue: Promise<unknown> = Promise.resolve();
 
   constructor(private state: State) {}
+
+  async getClient(id: string) {
+    return this.state.clients.find((c) => c.id === id) ?? null;
+  }
+  async findClientByPhone(phone: string) {
+    return this.state.clients.find((c) => c.phone === phone) ?? null;
+  }
+  async insertClient(client: Client) {
+    this.state.clients.push(client);
+  }
 
   async listBookings({ from, to }: { from: string; to: string }) {
     return this.state.bookings.filter((b) => b.date >= from && b.date <= to);

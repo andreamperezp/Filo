@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { IconBrandWhatsapp, IconPhone } from "@tabler/icons-react";
 import { BUSINESS, PROFESSIONAL_BY_ID, SERVICE_BY_ID } from "@/data/catalog";
 import { formatMoney } from "@/domain/money";
+import { formatArMobile } from "@/domain/phone";
 import { depositAmount } from "@/domain/policies";
 import { formatLongDay, formatRelativeDay, formatTime } from "@/domain/time";
 import { ownerCancelBooking, ownerMarkAttended } from "@/server/actions";
@@ -42,7 +43,7 @@ export default async function BookingDetail({ params }: PageProps<"/duena/turnos
         <div className="px-4 pt-2 pb-5">
           <Badge tone={status.tone}>{status.label}</Badge>
           <h1 className="mt-2 font-display text-4xl">{b.clientName}</h1>
-          <p className="text-muted">{b.clientPhone}</p>
+          <p className="text-muted">{formatArMobile(b.clientPhone)}</p>
           {/* Contacto en un toque: el canal real de una peluquería es WhatsApp. */}
           <div className="mt-4 grid grid-cols-2 gap-2">
             <a

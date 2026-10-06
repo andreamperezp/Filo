@@ -1,4 +1,4 @@
-import type { ActivityEvent, BlockedSlot, Booking, BookingId, IsoDate } from "@/domain/types";
+import type { ActivityEvent, BlockedSlot, Booking, BookingId, Client, IsoDate } from "@/domain/types";
 
 /**
  * Puerto de persistencia. La app solo conoce esta interfaz; hoy la implementa
@@ -6,6 +6,10 @@ import type { ActivityEvent, BlockedSlot, Booking, BookingId, IsoDate } from "@/
  * pantallas ni reglas de negocio.
  */
 export interface Repository {
+  getClient(id: string): Promise<Client | null>;
+  findClientByPhone(phone: string): Promise<Client | null>;
+  insertClient(client: Client): Promise<void>;
+
   listBookings(range: { from: IsoDate; to: IsoDate }): Promise<Booking[]>;
   listClientBookings(clientId: string): Promise<Booking[]>;
   getBooking(id: BookingId): Promise<Booking | null>;

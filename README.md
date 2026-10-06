@@ -13,12 +13,27 @@
 > manos ocupadas, y los huecos por cancelaciones de último momento no se vuelven
 > a llenar.
 
-El diseño parte del prototipo hecho en Claude Design (tema "crema", tipografías
-Instrument Serif + Manrope) y se implementó respetando sus pantallas y textos.
+El diseño parte del prototipo hecho en Claude Design (pantallas y textos) con la
+identidad de marca actual:
+
+| Rol en la UI            | Color           | Hex       |
+| ----------------------- | --------------- | --------- |
+| Fondo                   | **Merino**      | `#F5EEDD` |
+| Acento / logo           | **Rock Blue**   | `#84B3CE` |
+| Primario / texto fuerte | **Venice Blue** | `#16587B` |
+
+Tipografías: **Fraunces** (títulos, peso 800 con ejes `SOFT` y `WONK` para el aire
+setentoso de la referencia) y **Outfit** (texto e interfaz).
 
 ---
 
 ## Funcionalidades
+
+### Ingreso
+
+- **Clientes (`/`)**: entran con su **celular** y un **código de 6 números** (sin contraseña ni registro previo). La primera vez solo se les pide el nombre.
+- **Dueña (`/equipo`)**: email y contraseña, con bloqueo temporal tras 5 intentos fallidos.
+- Sesión en cookie firmada (HMAC) y `httpOnly`: 30 días para clientes, 12 h para la dueña.
 
 ### App de clientes (`/cliente`)
 
@@ -84,9 +99,17 @@ npm install
 npm run dev
 ```
 
-Abrí <http://localhost:3000> y elegí **Soy cliente** o **Soy la dueña**. Para
-ver la interacción entre roles, abrí cada uno en una ventana distinta (una en
+Abrí <http://localhost:3000>:
+
+- **Cliente**: ingresá un celular. En modo demo no se envían mensajes y el código aparece en pantalla. Con `11 5523-8841` entrás como Martín (tiene turnos); con cualquier otro número ves el alta de un cliente nuevo.
+- **Dueña**: andá a `/equipo` (link al pie del login). Las credenciales de prueba están en `.env.development`.
+
+Para ver la interacción entre roles, abrí cada uno en una ventana distinta (una en
 modo incógnito): lo que reserva el cliente aparece en la agenda de la dueña.
+
+> `.env.development` tiene **solo valores de prueba** para desarrollo local. En
+> producción hay que definir `SESSION_SECRET`, `OWNER_EMAIL` y `OWNER_PASSWORD`
+> (ver `.env.example`); si faltan, el ingreso falla en vez de usar valores inseguros.
 
 > **Demo:** los datos viven en memoria y se generan relativos a la fecha de hoy.
 > Al reiniciar el servidor vuelven al estado inicial.
@@ -114,7 +137,7 @@ src/
 ├── server/        Capa de aplicación: sesión, casos de uso y Server Actions
 ├── components/    UI compartida (botones, tarjetas, diálogo, tab bar)
 └── app/
-    ├── page.tsx           Entrada de la demo (elegir rol)
+    ├── (ingreso)/         Login: celular + código (/, /ingresar/*) y equipo (/equipo)
     ├── cliente/           App de clientes
     │   ├── reservar/      Flujo de reserva (servicio → profesional → horario → confirmar → listo)
     │   └── turnos/        Mis turnos

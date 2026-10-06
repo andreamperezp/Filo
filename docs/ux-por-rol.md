@@ -21,6 +21,27 @@ práctica se aplicó, por qué y dónde está en el código.
 
 ---
 
+## Ingreso (login)
+
+| Práctica                   | Cliente                                                                                                                                                   | Dueña                                                                           |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| **Método adecuado al uso** | Celular + código: sin contraseñas que recordar, un dato que ya conoce.                                                                                    | Email + contraseña: cuenta con datos personales de clientes, uso diario.        |
+| **Pedir lo mínimo**        | Un campo por pantalla. El nombre se pide solo la primera vez.                                                                                             | Dos campos.                                                                     |
+| **Teclado correcto**       | `type="tel"` + `inputMode` numérico; el código usa `autocomplete="one-time-code"` para que el celular lo sugiera desde el SMS.                            | `type="email"`, sin autocorrector ni mayúscula inicial.                         |
+| **Tolerancia al formato**  | Acepta 11 5523-8841, 011 15…, +54 9…: se normaliza en el servidor (`domain/phone.ts`).                                                                    | Ignora mayúsculas y espacios en el email.                                       |
+| **Menos pasos**            | El código se envía solo al completar los 6 dígitos (o al pegarlo).                                                                                        | Botón "Mostrar contraseña" para evitar errores de tipeo en el celular.          |
+| **Errores útiles**         | Junto al campo, con ejemplo; lo escrito no se borra.                                                                                                      | Mensaje único "Email o contraseña incorrectos" (no revela si la cuenta existe). |
+| **Reenvío transparente**   | Cuenta regresiva visible ("Podés pedir otro código en 28 s") y "Usar otro número".                                                                        | Bloqueo explicado ("Probá en 15 min").                                          |
+| **Sesión**                 | 30 días: no vuelve a loguearse cada vez.                                                                                                                  | 12 h: el dispositivo del local es compartido.                                   |
+| **Accesibilidad**          | Labels visibles (nunca solo placeholder), errores con `role="alert"` y `aria-describedby`, foco visible en Merino sobre fondo Venice, objetivos de 56 px. | Igual.                                                                          |
+| **Privacidad**             | El teléfono viaja en cookie firmada, nunca en la URL.                                                                                                     | —                                                                               |
+
+Diseño: afiche de tres bandas (Merino → Rock Blue → Venice Blue) tomado de la
+referencia de marca. Todo el texto chico cumple contraste AA sobre su banda.
+→ `app/(ingreso)/*`, `server/auth-actions.ts`, `server/session.ts`.
+
+---
+
 ## Cliente · "quiero mi turno ya, desde el celular"
 
 **Contexto:** usa la app pocas veces al mes, con una mano, muchas veces

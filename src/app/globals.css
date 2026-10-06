@@ -1,59 +1,71 @@
 @import "tailwindcss";
 
 /*
- * Design tokens de Filo (tomados del prototipo de Claude Design).
- * Tema claro "crema" y oscuro "tabaco". Los componentes usan solo tokens
- * semánticos (bg-surface, text-muted…), nunca hex sueltos.
+ * Design tokens de Filo.
+ * Paleta de marca: Merino (#F5EEDD), Rock Blue (#84B3CE) y Venice Blue (#16587B).
+ * Los componentes usan solo tokens semánticos (bg-surface, text-muted…), nunca
+ * hex sueltos. Contrastes verificados AA: texto normal ≥ 4.5:1, grande ≥ 3:1.
  */
 :root {
-  --bg: #f3eee6;
-  --surface: #fbf8f3;
-  --surface-2: #e9e0d2;
-  --ink: #2a1c15;
-  --muted: #6e6057;
-  --line: #e0d5c6;
-  --primary: #3b2419;
-  --on-primary: #f8f1e7;
-  --accent-soft: #eed9bf;
-  --on-accent-soft: #5e3212;
+  /* Marca (fijos en ambos temas, para piezas gráficas como el login) */
+  --merino: #f5eedd;
+  --rock: #84b3ce;
+  --venice: #16587b;
+  --venice-deep: #0d3b55;
+
+  /* Semánticos · tema claro */
+  --bg: #f5eedd; /* Merino */
+  --surface: #fcf8ef;
+  --surface-2: #ece2cb;
+  --ink: #0d3b55; /* Venice profundo: 9.6:1 sobre Merino */
+  --muted: #4e6878; /* 5.1:1 sobre Merino */
+  --line: #ded3ba;
+  --primary: #16587b; /* Venice Blue: 6.6:1 con Merino */
+  --on-primary: #f5eedd;
+  --accent-soft: #dce9f0; /* Rock Blue aclarado */
+  --on-accent-soft: #0d3b55;
   --danger: #a63a2b;
   --on-danger: #fff6f2;
   --danger-soft: #f4dcd5;
-  --ok-soft: #dce6da;
-  --on-ok: #2f4a33;
-  --pro-1: #b8692e;
-  --pro-2: #4e6b5a;
-  --pro-3: #8a5a7a;
-  --av-ink: #fff8f0;
+  --ok-soft: #dce8dd;
+  --on-ok: #2a4a33;
+  --pro-1: #c0673a;
+  --pro-2: #2e7d6b;
+  --pro-3: #7b5ea7;
+  --av-ink: #fffaf0;
   color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #16100d;
-    --surface: #211814;
-    --surface-2: #2e221c;
-    --ink: #f3e9e0;
-    --muted: #b09a8a;
-    --line: #3a2b23;
-    --primary: #f2b25c;
-    --on-primary: #2a1608;
-    --accent-soft: #3d2a1a;
-    --on-accent-soft: #f7d3a1;
+    --bg: #0b2638;
+    --surface: #10344b;
+    --surface-2: #174560;
+    --ink: #f5eedd;
+    --muted: #a8c4d6;
+    --line: #22506b;
+    --primary: #84b3ce; /* Rock Blue: 7:1 sobre el fondo */
+    --on-primary: #0b2638;
+    --accent-soft: #1b4d69;
+    --on-accent-soft: #d9e9f2;
     --danger: #ff8f7a;
     --on-danger: #2a0e0a;
-    --danger-soft: #3b2220;
-    --ok-soft: #2c3a2a;
-    --on-ok: #cbe6c0;
-    --pro-1: #f2b25c;
-    --pro-2: #9fd3b4;
-    --pro-3: #e8a3b8;
-    --av-ink: #2a1608;
+    --danger-soft: #3b2526;
+    --ok-soft: #1f4236;
+    --on-ok: #c3e6cf;
+    --pro-1: #f0a074;
+    --pro-2: #7fd0b6;
+    --pro-3: #c4adeb;
+    --av-ink: #0b2638;
     color-scheme: dark;
   }
 }
 
 @theme inline {
+  --color-merino: var(--merino);
+  --color-rock: var(--rock);
+  --color-venice: var(--venice);
+  --color-venice-deep: var(--venice-deep);
   --color-bg: var(--bg);
   --color-surface: var(--surface);
   --color-surface-2: var(--surface-2);
@@ -73,8 +85,21 @@
   --color-pro-2: var(--pro-2);
   --color-pro-3: var(--pro-3);
   --color-av-ink: var(--av-ink);
-  --font-sans: var(--font-manrope), system-ui, sans-serif;
-  --font-display: var(--font-instrument), Georgia, serif;
+  --font-sans: var(--font-outfit), system-ui, sans-serif;
+}
+
+/*
+ * Tipografía display: Fraunces en peso alto con los ejes "SOFT" (remates
+ * redondeados) y "WONK" (letras con personalidad), para el aire setentoso
+ * de la referencia. Solo para títulos; el texto corrido va en Outfit.
+ */
+@utility font-display {
+  font-family: var(--font-fraunces), Georgia, serif;
+  font-weight: 800;
+  font-variation-settings:
+    "SOFT" 100,
+    "WONK" 1;
+  letter-spacing: -0.015em;
 }
 
 body {
@@ -87,6 +112,11 @@ body {
 :focus-visible {
   outline: 2px solid var(--primary);
   outline-offset: 2px;
+}
+
+/* Sobre fondos de marca oscuros (banda Venice del login) el foco va en Merino. */
+[data-surface="dark"] :focus-visible {
+  outline-color: var(--merino);
 }
 
 @media (prefers-reduced-motion: reduce) {

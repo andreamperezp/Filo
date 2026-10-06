@@ -1,6 +1,5 @@
 "use server";
 
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -8,7 +7,7 @@ import { isIsoDate } from "@/domain/time";
 import { ANY_PROFESSIONAL } from "@/domain/types";
 import { PROFESSIONAL_BY_ID, SERVICE_BY_ID } from "@/data/catalog";
 import * as bookings from "./bookings";
-import { ROLE_COOKIE, requireClient, requireOwner } from "./session";
+import { requireClient, requireOwner } from "./session";
 
 /**
  * Server Actions = endpoints públicos (cualquiera puede hacerles POST).
@@ -26,19 +25,6 @@ const professionalChoice = z
 const bookingId = z.string().min(1).max(64);
 
 const parse = <T extends z.ZodType>(schema: T, form: FormData) => schema.safeParse(Object.fromEntries(form.entries()));
-
-/* ───────────── Demo: elegir rol ───────────── */
-
-export async function enterAs(form: FormData) {
-  const role = z.enum(["client", "owner"]).parse(form.get("role"));
-  (await cookies()).set(ROLE_COOKIE, role, { httpOnly: true, sameSite: "lax", path: "/" });
-  redirect(role === "client" ? "/cliente" : "/duena");
-}
-
-export async function signOut() {
-  (await cookies()).delete(ROLE_COOKIE);
-  redirect("/");
-}
 
 /* ───────────── Cliente ───────────── */
 

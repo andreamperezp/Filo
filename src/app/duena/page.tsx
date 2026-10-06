@@ -4,7 +4,8 @@ import { BUSINESS, PROFESSIONALS, PROFESSIONAL_BY_ID, SERVICE_BY_ID } from "@/da
 import { formatMoney } from "@/domain/money";
 import { depositAmount } from "@/domain/policies";
 import { dayOfMonth, dayShortName, formatDuration, formatLongDay, formatTime, isIsoDate } from "@/domain/time";
-import { ownerToggleBlock, signOut } from "@/server/actions";
+import { ownerToggleBlock } from "@/server/actions";
+import { signOut } from "@/server/auth-actions";
 import { getOwnerDay } from "@/server/bookings";
 import { requireOwner } from "@/server/session";
 import { Badge, ProDot, Screen, cx } from "@/components/ui";
@@ -36,7 +37,7 @@ export default async function OwnerAgenda({ searchParams }: PageProps<"/duena">)
           <form action={signOut}>
             <button
               type="submit"
-              aria-label="Salir de la demo"
+              aria-label={`${owner.name}: cerrar sesión`}
               className="grid size-11 place-items-center rounded-full bg-primary font-bold text-on-primary"
             >
               {owner.firstName[0]}
