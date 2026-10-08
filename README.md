@@ -1,5 +1,10 @@
 # Filo · turnos para peluquería y barbería
 
+> **Es una demo.** Nació de la curiosidad de ver hasta dónde podía llegar una idea:
+> el local y sus datos son inventados, y la demo pública está abierta para que
+> cualquiera la pruebe. Probala en [filo-eta.vercel.app](https://filo-eta.vercel.app)
+> y leé [SECURITY.md](SECURITY.md) antes de usar el código con un local real.
+
 **Filo** es una app web de turnos online para una peluquería/barbería de barrio
 (Av. San Martín 2140, Villa del Parque). Tiene dos caras:
 

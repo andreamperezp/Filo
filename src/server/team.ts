@@ -18,6 +18,7 @@ import type { StaffSessionUser } from "./session";
 
 const repo = getMemoryRepository;
 const fail = (error: string) => ({ ok: false, error }) as const;
+const MAX_TEAM_SIZE = 25;
 
 /** Lo que puede salir hacia las pantallas: nunca el hash de la contraseña. */
 export type PublicStaffUser = Omit<StaffUser, "passwordHash">;
@@ -70,6 +71,9 @@ export async function createTeamMember(
   input: { name: string; email: string; role: StaffRole; roleLabel: string; attends: boolean; serviceIds: string[] },
 ): Promise<CommandResult<{ temporaryPassword: string; user: StaffUser }>> {
   if (admin.role !== "admin") return fail("Solo el superadmin puede sumar personas al equipo.");
+  // Tope razonable para un local; en la demo pública evita que alguien llene la memoria.
+  if ((await repo().listStaff()).length >= MAX_TEAM_SIZE)
+    return fail(`El equipo llegó al máximo de ${MAX_TEAM_SIZE} personas.`);
   const email = input.email.trim().toLowerCase();
   if (await repo().findStaffByEmail(email)) return fail("Ya hay una cuenta con ese email.");
   if (input.attends && input.serviceIds.length === 0) return fail("Elegí al menos un servicio que haga.");
