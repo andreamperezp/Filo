@@ -205,6 +205,11 @@ docs/                      User flows, UX por rol y arquitectura
 
 ---
 
-## Licencia
+## Código abierto
 
-Proyecto privado. Todos los derechos reservados.
+Filo System es **open source** con licencia [MIT](LICENSE): podés usarlo, copiarlo,
+adaptarlo a tu peluquería, barbería u otro rubro, e incluso venderlo, siempre que
+mantengas el aviso de licencia. Las fotos de la landing tienen sus propios créditos
+(`src/app/sistema/fotos/CREDITOS.md`).
+
+¿Lo usás o lo mejoraste? Abrí un issue o un pull request: toda idea suma.
