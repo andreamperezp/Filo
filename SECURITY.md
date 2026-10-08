@@ -4,7 +4,8 @@
 
 Filo System se publica como **demo abierta**: los datos son de ejemplo, viven en
 memoria y se borran solos cada vez que el servidor se reinicia. En la demo
-cualquiera puede entrar con cualquier dato, a propósito, para probarla.
+cualquiera puede entrar eligiendo un rol (cliente, peluquero o dueño), sin
+usuario ni contraseña, a propósito, para probarla.
 
 No cargues datos reales de clientas en la demo pública.
 

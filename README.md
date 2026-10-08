@@ -145,17 +145,15 @@ npm run dev
 
 Abrí <http://localhost:3000>:
 
-- **Cliente**: ingresá un celular. En modo demo no se envían mensajes y el código aparece en pantalla. Con `11 5523-8841` entrás como Martín (tiene turnos); con cualquier otro número ves el alta de un cliente nuevo.
-- **Equipo**: andá a `/equipo` (link al pie del login). En modo demo elegís **“Probar como”**
-  (dueña o peluquero) y entrás con **cualquier email y contraseña**, incluso vacíos.
-  - Si ponés los datos de una cuenta real de la demo, entrás con esa: superadmin (`ADMIN_EMAIL`),
-    `lucas@filo.test` y `sofia@filo.test` (con `DEV_STAFF_PASSWORD`), o una creada desde **Equipo**
-    (así probás el primer ingreso con la contraseña temporal).
-  - Fuera del modo demo, el ingreso exige usuario y contraseña reales.
-- **Guía de la demo**: cada pantalla abre sola, la primera vez, una guía paso a paso
-  ([driver.js](https://driverjs.com)) que explica quién la usa, para qué sirve y qué cambia en la
-  versión real. Se repite con el botón **Guía** del costado. Los textos están en
-  `src/components/demo-guide/tours.ts`; fuera del modo demo no se carga.
+- **Demo** (desarrollo, o producción con `DEMO_MODE=true`): en el inicio elegís cómo probarla
+  (**Cliente**, **Peluquero** o **Dueño de peluquería**) y entrás directo, sin usuarios ni códigos.
+  Al cambiar de rol, la foto y el mensaje de la izquierda cuentan qué vas a ver.
+- **Local real** (sin modo demo): la clienta entra con su celular y un código de 6 números; el
+  equipo, desde `/equipo` con email y contraseña (con bloqueo tras varios intentos fallidos).
+- **Guía de la demo**: las pantallas principales abren, la primera vez, una guía corta
+  ([driver.js](https://driverjs.com)); cualquier pantalla con guía la repite con el botón **Guía**
+  del costado. Los textos están en `src/components/demo-guide/tours.ts`; fuera del modo demo no
+  se carga.
 
 Para ver la interacción entre roles, abrí cada uno en una ventana distinta (una en
 modo incógnito): lo que reserva el cliente aparece en la agenda del equipo.

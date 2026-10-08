@@ -1,5 +1,4 @@
 import type { ReactNode } from "react";
-import { DemoGuide } from "@/components/demo-guide";
 import { Logo } from "@/components/logo";
 
 /**
@@ -43,7 +42,6 @@ export function AuthShell({
           {footer && <div className="mt-8 border-t border-merino/20 pt-5 text-sm">{footer}</div>}
         </div>
       </main>
-      <DemoGuide audience="guest" />
     </div>
   );
 }

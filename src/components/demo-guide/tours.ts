@@ -33,62 +33,6 @@ const is = (path: string) => (pathname: string) => pathname === path;
 const STAFF: Audience[] = ["admin", "professional"];
 
 export const TOURS: Tour[] = [
-  /* ───────────── Ingreso ───────────── */
-  {
-    id: "ingreso",
-    matches: is("/"),
-    audiences: ["guest"],
-    autoStart: true,
-    steps: [
-      {
-        title: "Así entra tu clienta",
-        body: `<p>Solo con su celular, sin descargar nada. Probá con <strong>11 5523-8841</strong>.</p>`,
-        element: "main form",
-      },
-      {
-        title: "¿Querés ver el panel?",
-        body: `<p>Acá entran la dueña y los peluqueros. En la demo, con cualquier dato.</p>`,
-        element: 'main a[href="/equipo"]',
-      },
-    ],
-  },
-  {
-    id: "codigo",
-    matches: is("/ingresar/codigo"),
-    audiences: ["guest"],
-    steps: [
-      {
-        title: "El código",
-        body: `<p>En la versión real llega por WhatsApp. En la demo lo ves acá.</p>`,
-        element: "main p.border-dashed",
-      },
-    ],
-  },
-  {
-    id: "datos",
-    matches: is("/ingresar/datos"),
-    audiences: ["guest"],
-    steps: [
-      {
-        title: "Solo la primera vez",
-        body: `<p>Le pedimos únicamente su nombre.</p>`,
-        element: "main form",
-      },
-    ],
-  },
-  {
-    id: "equipo-ingreso",
-    matches: is("/equipo"),
-    audiences: ["guest"],
-    steps: [
-      {
-        title: "Elegí qué rol probar",
-        body: `<p>La dueña ve todo el local; un peluquero, solo lo suyo.</p>`,
-        element: '[data-tour="staff-role"]',
-      },
-    ],
-  },
-
   /* ───────────── App de la clienta ───────────── */
   {
     id: "cliente-inicio",

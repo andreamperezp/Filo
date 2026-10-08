@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { ADMIN_STAFF_ID, DEMO_PROFESSIONAL_STAFF_ID, getMemoryRepository } from "@/data/memory-repository";
+import { SEED_CLIENT } from "@/data/catalog";
 import { isDemo } from "./env";
 import { normalizeArMobile } from "@/domain/phone";
 import { issueCode, verifyCode } from "./one-time-code";
@@ -105,21 +106,6 @@ export async function staffSignIn(_prev: AuthState, form: FormData): Promise<Aut
   const email = field(form, "email");
   const password = String(form.get("password") ?? "");
 
-  // Demo pública: cualquiera entra con cualquier dato, eligiendo qué rol probar.
-  // Si los datos son de una cuenta real de la demo (p. ej. una creada desde
-  // Equipo), entra con esa. Todos los datos son de ejemplo; fuera de la demo
-  // este atajo no existe.
-  if (isDemo) {
-    const real = email && password ? await checkStaffCredentials(email, password) : null;
-    if (real?.ok) {
-      await startSession("staff", real.user.id);
-      redirect(real.user.mustChangePassword ? "/equipo/clave" : "/panel");
-    }
-    const as = field(form, "as") === "professional" ? DEMO_PROFESSIONAL_STAFF_ID : ADMIN_STAFF_ID;
-    await startSession("staff", as);
-    redirect("/panel");
-  }
-
   if (!email || !password) return { error: "Completá email y contraseña.", values: { email } };
 
   const result = await checkStaffCredentials(email, password);
@@ -137,6 +123,25 @@ export async function staffSignIn(_prev: AuthState, form: FormData): Promise<Aut
 }
 
 /* ───────────── Ambos ───────────── */
+
+/* ───────────── Demo pública: entrar eligiendo el rol ───────────── */
+
+export type DemoRole = "client" | "professional" | "admin";
+
+/**
+ * En la demo no hay ingreso real: quien la prueba elige cómo entrar y listo.
+ * Fuera del modo demo esta acción no hace nada (vuelve al ingreso normal).
+ */
+export async function enterDemo(form: FormData) {
+  if (!isDemo) redirect("/");
+  const role = field(form, "role") as DemoRole;
+  if (role === "client") {
+    await startSession("client", SEED_CLIENT.id, { name: SEED_CLIENT.name, phone: SEED_CLIENT.phone });
+    redirect("/cliente");
+  }
+  await startSession("staff", role === "professional" ? DEMO_PROFESSIONAL_STAFF_ID : ADMIN_STAFF_ID);
+  redirect("/panel");
+}
 
 export async function signOut() {
   await endSession();

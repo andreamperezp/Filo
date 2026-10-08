@@ -9,6 +9,8 @@ export const metadata = { title: "Panel del equipo" };
 
 /** Ingreso del equipo (superadmin y peluqueros): email + contraseña. */
 export default async function TeamSignIn() {
+  // En la demo se entra eligiendo el rol desde el inicio, sin usuario ni contraseña.
+  if (isDemo) redirect("/");
   const session = await getSession();
   if (session?.role === "staff") redirect("/panel");
 
@@ -25,13 +27,7 @@ export default async function TeamSignIn() {
         </p>
       }
     >
-      <StaffForm demo={isDemo} />
-      {isDemo && (
-        <p className="mt-5 rounded-xl border border-dashed border-merino/40 p-3 text-sm text-merino/85">
-          Demo: elegí qué rol querés probar y entrá con cualquier email y contraseña. En el local real, cada persona
-          tiene su propio usuario, creado por la dueña.
-        </p>
-      )}
+      <StaffForm />
     </AuthShell>
   );
 }
