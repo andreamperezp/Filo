@@ -70,10 +70,19 @@ export function DemoEntry() {
   return (
     <div className="flex min-h-dvh flex-col md:grid md:grid-cols-2">
       <div className="flex flex-col md:min-h-dvh">
-        <header className="bg-merino px-6 pt-10 pb-6 md:px-12 md:pt-12">
-          <Logo size="lg" className="text-venice" />
+        {/* En celular todo compacto: los roles y el botón tienen que verse sin scroll. */}
+        <header className="bg-merino px-5 py-3 md:px-12 md:pt-12 md:pb-6">
+          <div className="md:hidden">
+            <Logo size="sm" className="text-venice" />
+          </div>
+          <div className="hidden md:block">
+            <Logo size="lg" className="text-venice" />
+          </div>
         </header>
-        <section aria-live="polite" className="relative min-h-72 flex-1 overflow-hidden bg-venice-deep text-merino">
+        <section
+          aria-live="polite"
+          className="relative h-[clamp(8rem,22dvh,12rem)] flex-none overflow-hidden bg-venice-deep text-merino md:h-auto md:min-h-72 md:flex-1"
+        >
           {ROLES.map((r) => (
             <Image
               key={r.id}
@@ -92,26 +101,30 @@ export function DemoEntry() {
             aria-hidden
             className="absolute inset-0 bg-gradient-to-t from-venice-deep via-venice-deep/55 to-transparent"
           />
-          <div className="relative flex h-full min-h-72 flex-col justify-end px-6 pt-24 pb-7 md:px-12 md:pb-12">
-            <h1 className="font-display text-[2.1rem] leading-[1.05] md:text-5xl">{current.title}</h1>
-            <p className="mt-2 max-w-md text-[15px] leading-relaxed text-merino/90 md:text-lg">{current.message}</p>
+          <div className="relative flex h-full flex-col justify-end px-5 pb-3 md:min-h-72 md:px-12 md:pt-24 md:pb-12">
+            <h1 className="font-display text-2xl leading-[1.05] md:text-5xl">{current.title}</h1>
+            <p className="mt-1 max-w-md text-sm leading-snug text-merino/90 md:mt-2 md:text-lg md:leading-relaxed">
+              {current.message}
+            </p>
           </div>
         </section>
       </div>
 
       <main
         data-surface="dark"
-        className="flex flex-1 flex-col bg-venice px-6 pt-8 pb-[max(1.5rem,env(safe-area-inset-bottom))] text-merino md:justify-center md:px-12"
+        className="flex flex-1 flex-col bg-venice px-5 pt-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] text-merino md:justify-center md:px-12 md:pt-8"
       >
         <div className="w-full md:mx-auto md:max-w-sm">
-          <form action={enterDemo} className="flex flex-col gap-5">
-            <fieldset className="flex flex-col gap-2.5" data-tour="demo-roles">
-              <legend className="mb-1 font-display text-2xl">¿Cómo querés probarla?</legend>
-              <p className="mb-2 text-sm text-merino/80">Es una demo con datos inventados: tocá todo lo que quieras.</p>
+          <form action={enterDemo} className="flex flex-col gap-4 md:gap-5">
+            <fieldset className="flex flex-col gap-2 md:gap-2.5" data-tour="demo-roles">
+              <legend className="mb-0.5 font-display text-xl md:mb-1 md:text-2xl">¿Cómo querés probarla?</legend>
+              <p className="mb-1 text-xs text-merino/80 md:mb-2 md:text-sm">
+                Es una demo con datos inventados: tocá todo lo que quieras.
+              </p>
               {ROLES.map((r) => (
                 <label
                   key={r.id}
-                  className="flex min-h-16 cursor-pointer items-center gap-3.5 rounded-2xl border-2 border-merino/25 p-3.5 transition hover:border-merino/60 has-[:checked]:border-merino has-[:checked]:bg-merino/10 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-merino"
+                  className="flex min-h-12 cursor-pointer items-center gap-3 rounded-2xl border-2 border-merino/25 p-2.5 transition hover:border-merino/60 has-[:checked]:border-merino has-[:checked]:bg-merino/10 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-merino md:min-h-16 md:gap-3.5 md:p-3.5"
                 >
                   <input
                     type="radio"
@@ -124,7 +137,7 @@ export function DemoEntry() {
                   <span
                     aria-hidden
                     className={cx(
-                      "grid size-11 shrink-0 place-items-center rounded-xl transition",
+                      "grid size-9 shrink-0 place-items-center rounded-xl transition md:size-11",
                       role === r.id ? "bg-merino text-venice-deep" : "bg-merino/10 text-merino",
                     )}
                   >
@@ -132,7 +145,7 @@ export function DemoEntry() {
                   </span>
                   <span className="flex flex-col">
                     <span className="font-semibold">{r.label}</span>
-                    <span className="text-sm text-merino/80">{r.hint}</span>
+                    <span className="hidden text-sm text-merino/80 md:block">{r.hint}</span>
                   </span>
                 </label>
               ))}
@@ -140,7 +153,7 @@ export function DemoEntry() {
             <PrimaryButton pendingLabel="Entrando…">{current.cta}</PrimaryButton>
           </form>
 
-          <p className="mt-8 border-t border-merino/20 pt-5 text-sm text-merino/85">
+          <p className="mt-5 border-t border-merino/20 pt-4 text-sm text-merino/85 md:mt-8 md:pt-5">
             ¿Tenés una peluquería?{" "}
             <Link href="/sistema" className="font-semibold text-merino underline underline-offset-4">
               Conocé Filo System
