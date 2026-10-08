@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { getMemoryRepository } from "@/data/memory-repository";
 import type { StaffRole } from "@/domain/types";
 import type { CodeState } from "./one-time-code";
-import { isProduction } from "./env";
+import { isDemo, isProduction } from "./env";
 import { seal, unseal } from "./signed-cookie";
 
 export type Role = "client" | "staff";
@@ -44,8 +44,23 @@ export interface StaffSessionUser {
 
 export type Session = { role: "client"; user: ClientUser } | { role: "staff"; user: StaffSessionUser };
 
+/**
+ * La demo pública publicada se puede mostrar dentro del portfolio (iframe en
+ * otro sitio): ahí el navegador solo guarda la sesión si la cookie es
+ * `SameSite=None` + `Partitioned` (queda aislada para ese sitio, sin rastreo).
+ * Un local real usa siempre `Lax`, que es lo más seguro.
+ */
+const embeddable = isDemo && isProduction;
+
 const cookieOptions = (maxAge: number) =>
-  ({ httpOnly: true, secure: isProduction, sameSite: "lax", path: "/", maxAge }) as const;
+  ({
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: embeddable ? "none" : "lax",
+    partitioned: embeddable,
+    path: "/",
+    maxAge,
+  }) as const;
 
 /**
  * Única fuente de verdad sobre quién está usando la app. Se relee el usuario
@@ -96,11 +111,12 @@ export async function startSession(role: Role, userId: string, profile?: Session
     seal<SessionPayload>({ role, sub: userId, profile }, SESSION_TTL[role]),
     cookieOptions(SESSION_TTL[role]),
   );
-  jar.delete(LOGIN_COOKIE);
+  jar.set(LOGIN_COOKIE, "", cookieOptions(0));
 }
 
 export async function endSession() {
-  (await cookies()).delete(SESSION_COOKIE);
+  // Con los mismos atributos con que se creó: si no, el navegador no la borra.
+  (await cookies()).set(SESSION_COOKIE, "", cookieOptions(0));
 }
 
 export async function requireClient(): Promise<ClientUser> {
@@ -163,5 +179,5 @@ export async function setPendingLogin(login: PendingLogin) {
 }
 
 export async function clearPendingLogin() {
-  (await cookies()).delete(LOGIN_COOKIE);
+  (await cookies()).set(LOGIN_COOKIE, "", cookieOptions(0));
 }

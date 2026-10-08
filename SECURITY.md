@@ -22,6 +22,9 @@ No cargues datos reales de clientas en la demo pública.
 - Sesiones en cookies firmadas, contraseñas guardadas con `scrypt`, todos los
   formularios validados con límites de largo, permisos revisados en el servidor
   en cada acción, y cabeceras de seguridad en todas las páginas.
+- **Mostrar la app dentro de otro sitio:** la demo pública solo se deja mostrar
+  en el portfolio de la autora y en Claude (`next.config.ts`). Sin modo demo,
+  ningún sitio puede mostrarla adentro, y la sesión usa cookies `SameSite=Lax`.
 
 ## Si querés usarlo con un local real
 
